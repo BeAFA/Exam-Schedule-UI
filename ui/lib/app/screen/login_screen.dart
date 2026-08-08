@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../features/auth/api.dart';
 
+import 'admin_screen/home_screen.dart';
+import 'student_screen/home_screen.dart';
+import 'teacher_screen/home_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -36,16 +40,16 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(content: Text(result['msg'] ?? 'Đăng nhập thành công')),
       );
 
-      // final role = result['role'];
-      // Widget nextScreen = switch (role) {
-      //   'STUDENT' => const StudentHomeScreen(),
-      //   'TEACHER' => const TeacherHomeScreen(),
-      //   'ADMIN' => const AdminHomeScreen(),
-      //   _ => const LoginScreen(),
-      // };
-      // Navigator.of(
-      //   context,
-      // ).pushReplacement(MaterialPageRoute(builder: (_) => nextScreen));
+      final role = result['role'];
+      Widget nextScreen = switch (role) {
+        'STUDENT' => const StudentHomeScreen(),
+        'TEACHER' => const TeacherHomeScreen(),
+        'ADMIN' => const AdminHomeScreen(),
+        _ => const LoginScreen(),
+      };
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => nextScreen));
 
     } catch (e) {
       setState(() {
