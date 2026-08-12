@@ -51,12 +51,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
-            label: 'Trang chủ',
+            label: 'Home',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
-            label: 'Trang cá nhân',
+            label: 'Profile',
           ),
         ],
       ),

@@ -74,7 +74,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Trang chủ của sinh viên', style: TextStyle(fontSize: 24)),
+          const Text('Trang chủ của Quản trị viên', style: TextStyle(fontSize: 24)),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: (){

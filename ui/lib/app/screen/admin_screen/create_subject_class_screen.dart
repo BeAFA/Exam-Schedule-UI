@@ -6,9 +6,6 @@ import '../../../core/models/subject_model.dart';
 import '../../../core/models/room_model.dart';
 import '../../../core/models/schedule_model.dart';
 
-/// Form (dạng bottom sheet) để tạo lớp học phần mới.
-/// Trả về `true` qua Navigator.pop nếu tạo thành công, để màn hình cha biết
-/// cần reload danh sách.
 class AddSubjectClassSheet extends StatefulWidget {
   const AddSubjectClassSheet({super.key});
 
@@ -27,7 +24,6 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
  
   Subject? _selectedSubject;
   Room? _selectedRoom;
-  ClassStatus _selectedStatus = ClassStatus.open;
   Semester _selectedSemester = Semester.semester1;
   Weekday _selectedWeekday = Weekday.mon;
   SessionPeriod _selectedSession = SessionPeriod.morning;
@@ -51,6 +47,8 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
   }
 
   Future<void> _handleSubmit() async {
+    if (_isSubmitting) return;
+
     if (!_formKey.currentState!.validate()) return;
  
     if (_selectedSubject == null) {
@@ -74,7 +72,6 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
         subjectId: _selectedSubject!.id,
         semester: _selectedSemester,
         academicYear: _academicYearController.text.trim(),
-        status: _selectedStatus,
         maxStudents: int.parse(_maxStudentsController.text.trim()),
         roomId: _selectedRoom!.id,
         weekday: _selectedWeekday,
@@ -84,6 +81,7 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
       if (!mounted) return;
       Navigator.of(context).pop(true); // báo cho màn hình cha reload danh sách
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
@@ -242,25 +240,6 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                   onChanged: (value) {
                     if (value != null) {
                       setState(() => _selectedSemester = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
- 
-                DropdownButtonFormField<ClassStatus>(
-                  initialValue: _selectedStatus,
-                  decoration: const InputDecoration(
-                    labelText: 'Trạng thái',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ClassStatus.values
-                      .map(
-                        (s) => DropdownMenuItem(value: s, child: Text(s.label)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedStatus = value);
                     }
                   },
                 ),

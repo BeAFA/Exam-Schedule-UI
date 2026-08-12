@@ -9,7 +9,7 @@ import '/core/models/room_model.dart';
 import '/core/models/schedule_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  static const String baseUrl = 'http://192.168.1.158:8000';
 
   static Future<Map<String, dynamic>> login(
     String email,
@@ -137,7 +137,6 @@ class ApiService {
     required int subjectId,
     required Semester semester,
     required String academicYear,
-    required ClassStatus status,
     required int maxStudents,
     required int roomId,
     required Weekday weekday,
@@ -157,7 +156,6 @@ class ApiService {
         'subject_id': subjectId,
         'semester': semester.value,
         'academic_year': academicYear,
-        'status': status.value,
         'max_students': maxStudents,
         'room_id': roomId,
         'weekday': weekday.value,
@@ -168,7 +166,6 @@ class ApiService {
     final data = jsonDecode(response.body);
  
     if (response.statusCode == 200 || response.statusCode == 201) {
-      // Response dạng { subject_class: {...}, schedule: {...} }
       return SubjectClass.fromJson(data['subject_class'] as Map<String, dynamic>);
     } else {
       throw Exception(data['detail'] ?? 'Tạo lớp học phần thất bại');

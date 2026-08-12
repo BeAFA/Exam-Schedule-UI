@@ -18,7 +18,7 @@ enum Semester {
   String get label => switch (this) {
         Semester.semester1 => 'Học kỳ 1',
         Semester.semester2 => 'Học kỳ 2',
-        Semester.semester3 => 'Học kỳ hè',
+        Semester.semester3 => 'Học kỳ 3',
       };
 }
 
