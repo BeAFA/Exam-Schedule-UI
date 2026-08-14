@@ -1,43 +1,90 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/auth/api.dart';
-import '../../../core/models/subject_class_model.dart';
 import '../../../core/models/subject_model.dart';
 import '../../../core/models/room_model.dart';
+import '../../../core/models/enum_model.dart';
+import '../../../core/models/subject_class_model.dart';
 import '../../../core/models/schedule_model.dart';
 
-class AddSubjectClassSheet extends StatefulWidget {
-  const AddSubjectClassSheet({super.key});
+/// Bottom sheet dùng chung cho cả TẠO và SỬA lớp học phần.
+///
+/// - Tạo mới ([existing] == null): hiện ô chọn Môn học, KHÔNG có trường
+///   Trạng thái (backend luôn set OPEN khi tạo lớp).
+/// - Sửa ([existing] != null): ẩn ô chọn Môn học (SubjectClassUpdate ở
+///   backend không có subject_id -> không đổi được môn của 1 lớp đã tạo),
+///   hiện thêm Trạng thái. Phòng/Thứ/Buổi hiện KHÔNG được backend trả kèm
+///   trong danh sách lớp (GET /subject_class chỉ trả cột của SubjectClass,
+///   không kèm Schedule) nên không thể prefill sẵn — admin chọn lại như
+///   lúc tạo lớp.
+class SubjectClassFormSheet extends StatefulWidget {
+  final SubjectClass? existing;
+  final String? existingSubjectName;
+  final Schedule? existingSchedule;
+
+  const SubjectClassFormSheet({
+    super.key,
+    this.existing,
+    this.existingSubjectName,
+    this.existingSchedule,
+  });
 
   @override
-  State<AddSubjectClassSheet> createState() => _AddSubjectClassSheetState();
+  State<SubjectClassFormSheet> createState() => _SubjectClassFormSheetState();
 }
 
-class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
+class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _academicYearController = TextEditingController();
-  final _maxStudentsController = TextEditingController();
- 
+  late final TextEditingController _nameController;
+  late final TextEditingController _academicYearController;
+  late final TextEditingController _maxStudentsController;
+
   late Future<List<Subject>> _subjectsFuture;
   late Future<List<Room>> _roomsFuture;
- 
+
   Subject? _selectedSubject;
   Room? _selectedRoom;
-  Semester _selectedSemester = Semester.semester1;
+  late Semester _selectedSemester;
   Weekday _selectedWeekday = Weekday.mon;
   SessionPeriod _selectedSession = SessionPeriod.morning;
- 
+  late ClassStatus _selectedStatus;
+
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  bool get _isEdit => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
+    final existing = widget.existing;
+
+    final schedule = widget.existingSchedule;
+
+    _nameController = TextEditingController(
+      text: existing?.subjectClassName ?? '',
+    );
+    _academicYearController = TextEditingController(
+      text: existing?.academicYear ?? '',
+    );
+    _maxStudentsController = TextEditingController(
+      text: existing?.maxStudents != null
+          ? existing!.maxStudents.toString()
+          : '',
+    );
+
+    _selectedSemester = existing?.semester ?? Semester.semester1;
+    _selectedStatus = existing?.status ?? ClassStatus.open;
+    if (schedule != null) {
+      _selectedRoom = schedule.room;
+      _selectedWeekday = schedule.weekday;
+      _selectedSession = schedule.session;
+    }
+
     _subjectsFuture = ApiService.getSubjects();
     _roomsFuture = ApiService.getRooms();
   }
- 
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -50,34 +97,48 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
     if (_isSubmitting) return;
 
     if (!_formKey.currentState!.validate()) return;
- 
-    if (_selectedSubject == null) {
+
+    if (!_isEdit && _selectedSubject == null) {
       setState(() => _errorMessage = 'Vui lòng chọn môn học');
       return;
     }
- 
+
     if (_selectedRoom == null) {
       setState(() => _errorMessage = 'Vui lòng chọn phòng học');
       return;
     }
- 
+
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
- 
+
     try {
-      await ApiService.createSubjectClass(
-        subjectClassName: _nameController.text.trim(),
-        subjectId: _selectedSubject!.id,
-        semester: _selectedSemester,
-        academicYear: _academicYearController.text.trim(),
-        maxStudents: int.parse(_maxStudentsController.text.trim()),
-        roomId: _selectedRoom!.id,
-        weekday: _selectedWeekday,
-        session: _selectedSession,
-      );
- 
+      if (_isEdit) {
+        await ApiService.updateSubjectClass(
+          subjectClassId: widget.existing!.id,
+          subjectClassName: _nameController.text.trim(),
+          semester: _selectedSemester,
+          academicYear: _academicYearController.text.trim(),
+          maxStudents: int.parse(_maxStudentsController.text.trim()),
+          roomId: _selectedRoom!.id,
+          weekday: _selectedWeekday,
+          session: _selectedSession,
+          status: _selectedStatus,
+        );
+      } else {
+        await ApiService.createSubjectClass(
+          subjectClassName: _nameController.text.trim(),
+          subjectId: _selectedSubject!.id,
+          semester: _selectedSemester,
+          academicYear: _academicYearController.text.trim(),
+          maxStudents: int.parse(_maxStudentsController.text.trim()),
+          roomId: _selectedRoom!.id,
+          weekday: _selectedWeekday,
+          session: _selectedSession,
+        );
+      }
+
       if (!mounted) return;
       Navigator.of(context).pop(true); // báo cho màn hình cha reload danh sách
     } catch (e) {
@@ -91,7 +152,6 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -124,12 +184,15 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                     ),
                   ),
                 ),
-                const Text(
-                  'Thêm lớp học phần',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                Text(
+                  _isEdit ? 'Sửa lớp học phần' : 'Thêm lớp học phần',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 20),
- 
+
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -141,26 +204,39 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                       : null,
                 ),
                 const SizedBox(height: 12),
- 
-                // Dropdown tìm kiếm môn học (chỉ chọn trong danh sách có sẵn,
-                // không cho tạo môn học mới).
-                _buildSearchField<Subject>(
-                  future: _subjectsFuture,
-                  label: 'Môn học',
-                  hint: 'Gõ để tìm môn học...',
-                  displayString: (s) => s.name,
-                  selected: _selectedSubject,
-                  onSelected: (s) => setState(() {
-                    _selectedSubject = s;
-                    _errorMessage = null;
-                  }),
-                  onCleared: () => setState(() => _selectedSubject = null),
-                  onRetry: () =>
-                      setState(() => _subjectsFuture = ApiService.getSubjects()),
-                  emptyMessage: 'Chưa có môn học nào trong hệ thống.',
-                ),
-                const SizedBox(height: 12),
- 
+
+                if (_isEdit) ...[
+                  // Sửa lớp KHÔNG được đổi môn học -> chỉ hiển thị, không cho chọn.
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Môn học',
+                      border: OutlineInputBorder(),
+                    ),
+                    child: Text(widget.existingSubjectName ?? 'Không rõ'),
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  // Dropdown tìm kiếm môn học (chỉ chọn trong danh sách có sẵn,
+                  // không cho tạo môn học mới).
+                  _buildSearchField<Subject>(
+                    future: _subjectsFuture,
+                    label: 'Môn học',
+                    hint: 'Gõ để tìm môn học...',
+                    displayString: (s) => s.name,
+                    selected: _selectedSubject,
+                    onSelected: (s) => setState(() {
+                      _selectedSubject = s;
+                      _errorMessage = null;
+                    }),
+                    onCleared: () => setState(() => _selectedSubject = null),
+                    onRetry: () => setState(
+                      () => _subjectsFuture = ApiService.getSubjects(),
+                    ),
+                    emptyMessage: 'Chưa có môn học nào trong hệ thống.',
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 // Dropdown tìm kiếm phòng học, cùng cơ chế với môn học.
                 _buildSearchField<Room>(
                   future: _roomsFuture,
@@ -177,8 +253,16 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                       setState(() => _roomsFuture = ApiService.getRooms()),
                   emptyMessage: 'Chưa có phòng học nào trong hệ thống.',
                 ),
+                if (_isEdit) ...[
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Hệ thống chưa hỗ trợ tải sẵn lịch học hiện tại của lớp, '
+                    'vui lòng chọn lại phòng/thứ/buổi.',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
                 const SizedBox(height: 12),
- 
+
                 Row(
                   children: [
                     Expanded(
@@ -189,10 +273,12 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                           border: OutlineInputBorder(),
                         ),
                         items: Weekday.values
-                            .map((w) => DropdownMenuItem(
-                                  value: w,
-                                  child: Text(w.label),
-                                ))
+                            .map(
+                              (w) => DropdownMenuItem(
+                                value: w,
+                                child: Text(w.label),
+                              ),
+                            )
                             .toList(),
                         onChanged: (value) {
                           if (value != null) {
@@ -210,10 +296,12 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                           border: OutlineInputBorder(),
                         ),
                         items: SessionPeriod.values
-                            .map((s) => DropdownMenuItem(
-                                  value: s,
-                                  child: Text(s.label),
-                                ))
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(s.label),
+                              ),
+                            )
                             .toList(),
                         onChanged: (value) {
                           if (value != null) {
@@ -225,7 +313,7 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                   ],
                 ),
                 const SizedBox(height: 12),
- 
+
                 DropdownButtonFormField<Semester>(
                   initialValue: _selectedSemester,
                   decoration: const InputDecoration(
@@ -244,7 +332,7 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                   },
                 ),
                 const SizedBox(height: 12),
- 
+
                 TextFormField(
                   controller: _academicYearController,
                   decoration: const InputDecoration(
@@ -263,7 +351,7 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                   },
                 ),
                 const SizedBox(height: 12),
- 
+
                 TextFormField(
                   controller: _maxStudentsController,
                   keyboardType: TextInputType.number,
@@ -281,7 +369,29 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                     return null;
                   },
                 ),
- 
+
+                if (_isEdit) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<ClassStatus>(
+                    initialValue: _selectedStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Trạng thái',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ClassStatus.values
+                        .map(
+                          (s) =>
+                              DropdownMenuItem(value: s, child: Text(s.label)),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _selectedStatus = value);
+                      }
+                    },
+                  ),
+                ],
+
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -290,7 +400,7 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                     textAlign: TextAlign.center,
                   ),
                 ],
- 
+
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _isSubmitting ? null : _handleSubmit,
@@ -311,7 +421,7 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Tạo lớp'),
+                      : Text(_isEdit ? 'Lưu thay đổi' : 'Tạo lớp'),
                 ),
               ],
             ),
@@ -320,7 +430,7 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
       ),
     );
   }
- 
+
   Widget _buildSearchField<T extends Object>({
     required Future<List<T>> future,
     required String label,
@@ -347,7 +457,7 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
             ),
           );
         }
- 
+
         if (snapshot.hasError) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,18 +470,21 @@ class _AddSubjectClassSheetState extends State<AddSubjectClassSheet> {
             ],
           );
         }
- 
+
         final items = snapshot.data ?? [];
- 
+
         if (items.isEmpty) {
           return Text(
             emptyMessage,
             style: const TextStyle(color: Colors.grey, fontSize: 13),
           );
         }
- 
+
         return Autocomplete<T>(
           displayStringForOption: displayString,
+          initialValue: selected != null
+              ? TextEditingValue(text: displayString(selected))
+              : null,
           optionsBuilder: (textEditingValue) {
             if (textEditingValue.text.isEmpty) return items;
             final query = textEditingValue.text.toLowerCase();

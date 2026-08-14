@@ -6,10 +6,12 @@ import '/core/models/profile_model.dart';
 import '/core/models/subject_class_model.dart';
 import '/core/models/subject_model.dart';
 import '/core/models/room_model.dart';
+import '/core/models/enum_model.dart';
+import '/core/models/teaching_assignment_model.dart';
 import '/core/models/schedule_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.158:8000';
+  static const String baseUrl = 'http://192.168.1.102:8000';
 
   static Future<Map<String, dynamic>> login(
     String email,
@@ -49,6 +51,27 @@ class ApiService {
       throw Exception('Failed to fetch profile');
     }
   }
+
+  static Future<Profile> getCurrentUser() async {
+  final token = await TokenStorage.getToken();
+
+  if (token == null) {
+    throw Exception('No token');
+  }
+
+  final response = await http.get(
+    Uri.parse('$baseUrl/me'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception('Unauthorized');
+  }
+
+  return Profile.fromJson(jsonDecode(response.body));
+}
 
   static Future<void> logout() async {
     final token = await TokenStorage.getToken();
@@ -106,6 +129,26 @@ class ApiService {
     }
   }
 
+  static Future<List<Schedule>> getSchedules() async{
+    final url = Uri.parse('$baseUrl/schedule');
+    final token = await TokenStorage.getToken();
+ 
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+ 
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((e) => Schedule.fromJson(e as Map<String, dynamic>)).toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch schedules');
+    }
+  }
+
   static Future<List<SubjectClass>> getSubjectClass() async {
     final url = Uri.parse('$baseUrl/subject_class');
     final token = await TokenStorage.getToken();
@@ -129,6 +172,40 @@ class ApiService {
     } else {
       final data = jsonDecode(response.body);
       throw Exception(data['detail'] ?? 'Failed to fetch subject class');
+    }
+  }
+
+  /// Danh sách giảng viên. Backend (UserOut) chỉ trả id/user_code/
+  /// first_name/last_name/email — không có full_name/role như /me trả về.
+  /// Để "dùng chung với Profile model" như yêu cầu, ta tự ghép full_name
+  /// từ first_name + last_name và gắn role = 'TEACHER' ở phía client
+  /// trước khi đưa vào Profile.fromJson.
+  static Future<List<Profile>> getTeachers() async {
+    final url = Uri.parse('$baseUrl/teacher');
+    final token = await TokenStorage.getToken();
+ 
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+ 
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((e) {
+        final map = e as Map<String, dynamic>;
+        final fullName =
+            '${map['first_name'] ?? ''} ${map['last_name'] ?? ''}'.trim();
+        return Profile.fromJson({
+          ...map,
+          'full_name': fullName,
+          'role': 'TEACHER',
+        });
+      }).toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch teachers');
     }
   }
 
@@ -169,6 +246,132 @@ class ApiService {
       return SubjectClass.fromJson(data['subject_class'] as Map<String, dynamic>);
     } else {
       throw Exception(data['detail'] ?? 'Tạo lớp học phần thất bại');
+    }
+  }
+
+  /// Sửa chi tiết lớp học phần. Lưu ý: SubjectClassUpdate ở backend KHÔNG
+  /// có subject_id -> không thể đổi môn học của 1 lớp đã tạo, chỉ đổi
+  /// tên/lịch học/sĩ số/trạng thái.
+  static Future<SubjectClass> updateSubjectClass({
+    required int subjectClassId,
+    required String subjectClassName,
+    required Semester semester,
+    required String academicYear,
+    required int maxStudents,
+    required int roomId,
+    required Weekday weekday,
+    required SessionPeriod session,
+    required ClassStatus status,
+  }) async {
+    final url = Uri.parse('$baseUrl/subject_class/$subjectClassId/update');
+    final token = await TokenStorage.getToken();
+ 
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'subject_class_name': subjectClassName,
+        'semester': semester.value,
+        'academic_year': academicYear,
+        'max_students': maxStudents,
+        'room_id': roomId,
+        'weekday': weekday.value,
+        'session': session.value,
+        'status': status.value,
+      }),
+    );
+ 
+    final data = jsonDecode(response.body);
+ 
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return SubjectClass.fromJson(data['subject_class'] as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Cập nhật lớp học phần thất bại');
+    }
+  }
+ 
+  /// Lấy phân công giảng dạy hiện tại (nếu có) của 1 lớp học phần.
+  /// Backend trả `null` (status 200) khi lớp chưa có giảng viên nào.
+  static Future<TeachingAssignment?> getTeachingAssignment(
+    int subjectClassId,
+  ) async {
+    final url =
+        Uri.parse('$baseUrl/subject_class/$subjectClassId/teaching_assignment');
+    final token = await TokenStorage.getToken();
+ 
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+ 
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data == null) return null;
+      return TeachingAssignment.fromJson(data as Map<String, dynamic>);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch teaching assignment');
+    }
+  }
+ 
+  static Future<TeachingAssignment> createTeachingAssignment({
+    required int teacherId,
+    required int subjectClassId,
+  }) async {
+    final url = Uri.parse('$baseUrl/teaching_assignment/create');
+    final token = await TokenStorage.getToken();
+ 
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'teacher_id': teacherId,
+        'subject_class_id': subjectClassId,
+      }),
+    );
+ 
+    final data = jsonDecode(response.body);
+ 
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return TeachingAssignment.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Phân công giảng dạy thất bại');
+    }
+  }
+ 
+  static Future<TeachingAssignment> updateTeachingAssignment({
+    required int teachingAssignmentId,
+    required int teacherId,
+    required int subjectClassId,
+  }) async {
+    final url =
+        Uri.parse('$baseUrl/teaching_assignment/$teachingAssignmentId/update');
+    final token = await TokenStorage.getToken();
+ 
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'teacher_id': teacherId,
+        'subject_class_id': subjectClassId,
+      }),
+    );
+ 
+    final data = jsonDecode(response.body);
+ 
+    if (response.statusCode == 200) {
+      return TeachingAssignment.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Cập nhật phân công giảng dạy thất bại');
     }
   }
 }

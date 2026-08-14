@@ -1,4 +1,3 @@
-// core/models/room_model.dart
 class Room {
   final int id;
   final String name;
