@@ -8,6 +8,8 @@ class SubjectClass {
   final String academicYear;
   final ClassStatus status;
   final int? maxStudents;
+  final DateTime? startDate;
+  final int? numberOfSessions;
 
   SubjectClass({
     required this.id,
@@ -17,6 +19,8 @@ class SubjectClass {
     required this.academicYear,
     required this.status,
     this.maxStudents,
+    this.startDate,
+    this.numberOfSessions,
   });
 
   factory SubjectClass.fromJson(Map<String, dynamic> json) {
@@ -28,6 +32,8 @@ class SubjectClass {
       academicYear: json['academic_year'] ?? '',
       status: ClassStatus.fromJson(json['status'] ?? ''),
       maxStudents: json['max_students'],
+      startDate: json['start_date'] != null ? DateTime.parse(json['start_date']) : null,
+      numberOfSessions: json['number_of_sessions'],
     );
   }
 }

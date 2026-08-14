@@ -99,3 +99,71 @@ enum ClassStatus {
         ClassStatus.finished => const Color(0xFF8E8E93),
       };
 }
+
+enum TypeOfExam {
+  midterm('MIDTERM'),
+  finalExam('FINALTEST');
+
+  final String value;
+  const TypeOfExam(this.value);
+
+  static TypeOfExam fromJson(String raw) {
+    return TypeOfExam.values.firstWhere(
+      (e) => e.value == raw,
+      orElse: () => TypeOfExam.finalExam,
+    );
+  }
+
+  String get label => switch (this) {
+        TypeOfExam.midterm => 'Giữa kỳ',
+        TypeOfExam.finalExam => 'Cuối kỳ',
+      };
+}
+
+enum TimeFrame {
+  h0730('07:30'),
+  h0950('09:50'),
+  h1300('13:00'),
+  h1520('15:20'),
+  h1800('18:00');
+
+  final String value;
+  const TimeFrame(this.value);
+
+  static TimeFrame fromJson(String raw) {
+    return TimeFrame.values.firstWhere(
+      (e) => e.value == raw,
+      orElse: () => TimeFrame.h0730,
+    );
+  }
+
+  String get label => switch (this) {
+        TimeFrame.h0730 => '07:30',
+        TimeFrame.h0950 => '09:50',
+        TimeFrame.h1300 => '13:00',
+        TimeFrame.h1520 => '15:20',
+        TimeFrame.h1800 => '18:00',
+      };
+}
+
+enum ExamStatus {
+  scheduled('SCHEDULED'),
+  completed('COMPLETED'),
+  cancelled('CANCELLED');
+
+  final String value;
+  const ExamStatus(this.value);
+
+  static ExamStatus fromJson(String raw) {
+    return ExamStatus.values.firstWhere(
+      (e) => e.value == raw,
+      orElse: () => ExamStatus.scheduled,
+    );
+  }
+
+  String get label => switch (this) {
+        ExamStatus.scheduled => 'Đã xếp lịch',
+        ExamStatus.completed => 'Đã hoàn thành',
+        ExamStatus.cancelled => 'Đã hủy',
+      };
+}

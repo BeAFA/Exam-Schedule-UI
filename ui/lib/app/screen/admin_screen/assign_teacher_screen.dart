@@ -37,12 +37,52 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  // Sử dụng Controller và FocusNode để làm Custom Autocomplete (Inline)
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  List<Profile> _filteredTeachers = [];
+
   bool get _isEdit => widget.existingAssignment != null;
 
   @override
   void initState() {
     super.initState();
     _selectedTeacher = widget.currentTeacher;
+    _filteredTeachers = widget.teachers;
+
+    // Khởi tạo text hiển thị nếu đã có giảng viên
+    if (_selectedTeacher != null) {
+      _searchController.text =
+          '${_selectedTeacher!.fullName} (${_selectedTeacher!.userCode})';
+    }
+
+    // Lắng nghe thay đổi text để lọc danh sách giảng viên
+    _searchController.addListener(() {
+      final query = _searchController.text.toLowerCase();
+      setState(() {
+        if (query.isEmpty) {
+          _filteredTeachers = widget.teachers;
+        } else {
+          _filteredTeachers = widget.teachers
+              .where((t) =>
+                  t.fullName.toLowerCase().contains(query) ||
+                  t.userCode.toLowerCase().contains(query))
+              .toList();
+        }
+      });
+    });
+
+    // Lắng nghe trạng thái focus để hiện/ẩn danh sách
+    _searchFocus.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
   }
 
   Future<void> _handleSubmit() async {
@@ -89,8 +129,6 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final teachers = widget.teachers;
-
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -119,8 +157,10 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
               ),
               Text(
                 _isEdit ? 'Đổi giảng viên giảng dạy' : 'Phân công giảng viên',
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -129,77 +169,87 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
               ),
               const SizedBox(height: 20),
 
-              if (teachers.isEmpty)
+              if (widget.teachers.isEmpty)
                 const Text(
                   'Chưa có giảng viên nào trong hệ thống.',
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 )
-              else
-                Autocomplete<Profile>(
-                  displayStringForOption: (p) =>
-                      '${p.fullName} (${p.userCode})',
-                  initialValue: TextEditingValue(
-                    text: _selectedTeacher == null
-                        ? ''
-                        : '${_selectedTeacher!.fullName} (${_selectedTeacher!.userCode})',
+              else ...[
+                // Trường tìm kiếm giảng viên
+                TextFormField(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  decoration: InputDecoration(
+                    labelText: 'Giảng viên',
+                    hintText: 'Gõ để tìm giảng viên...',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 20),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _selectedTeacher = null);
+                              _searchFocus.requestFocus(); // Mở lại danh sách
+                            },
+                          )
+                        : const Icon(Icons.search),
                   ),
-                  optionsBuilder: (textEditingValue) {
-                    if (textEditingValue.text.isEmpty) return teachers;
-                    final query = textEditingValue.text.toLowerCase();
-                    return teachers.where(
-                      (t) =>
-                          t.fullName.toLowerCase().contains(query) ||
-                          t.userCode.toLowerCase().contains(query),
-                    );
+                  onChanged: (_) {
+                    if (_selectedTeacher != null) {
+                      setState(() => _selectedTeacher = null);
+                    }
                   },
-                  onSelected: (t) => setState(() {
-                    _selectedTeacher = t;
-                    _errorMessage = null;
-                  }),
-                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: const InputDecoration(
-                        labelText: 'Giảng viên',
-                        hintText: 'Gõ để tìm giảng viên...',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.search),
-                      ),
-                      onChanged: (_) {
-                        if (_selectedTeacher != null) {
-                          setState(() => _selectedTeacher = null);
-                        }
-                      },
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelectedOption, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 4,
-                        borderRadius: BorderRadius.circular(8),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 240),
-                          child: ListView.builder(
-                            padding: EdgeInsets.zero,
+                ),
+
+                // Danh sách (Inline dropdown) chỉ hiện khi đang focus vào ô nhập
+                if (_searchFocus.hasFocus) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        )
+                      ],
+                    ),
+                    child: _filteredTeachers.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text(
+                              'Không tìm thấy giảng viên.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : ListView.builder(
                             shrinkWrap: true,
-                            itemCount: options.length,
+                            padding: EdgeInsets.zero,
+                            itemCount: _filteredTeachers.length,
                             itemBuilder: (context, index) {
-                              final option = options.elementAt(index);
+                              final t = _filteredTeachers[index];
                               return ListTile(
                                 dense: true,
-                                title:
-                                    Text('${option.fullName} (${option.userCode})'),
-                                onTap: () => onSelectedOption(option),
+                                title: Text('${t.fullName} (${t.userCode})'),
+                                onTap: () {
+                                  setState(() {
+                                    _selectedTeacher = t;
+                                    _searchController.text =
+                                        '${t.fullName} (${t.userCode})';
+                                    _searchFocus.unfocus(); // Đóng danh sách
+                                    _errorMessage = null;
+                                  });
+                                },
                               );
                             },
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                  ),
+                ],
+              ],
 
               if (_errorMessage != null) ...[
                 const SizedBox(height: 12),
@@ -217,8 +267,9 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
                   backgroundColor: const Color(0xFF6E8CF0),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape:
-                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
                 ),
                 child: _isSubmitting
                     ? const SizedBox(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../login_screen.dart';
 import '../profile_screen.dart';
 import 'subject_class_screen.dart';
+import 'exam_screen.dart';
 import '../../../features/auth/api.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -22,11 +23,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _pages = [_buildHomeScreen(), const SubjectClassScreen(), const ProfileScreen()];
+    _pages = [
+      _buildHomeScreen(), 
+      const SubjectClassScreen(), 
+      const ExamScreen(), 
+      const ProfileScreen()
+    ];
   }
 
   void _handleLogout() async {
     await ApiService.logout();
+    
+    // Kiểm tra mounted trước khi dùng BuildContext sau hàm async
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -36,7 +45,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      // THAY ĐỔI 1: Thay IndexedStack bằng việc gọi trực tiếp Widget đang được chọn
+      // Màn hình nào được focus mới bắt đầu call API và render.
+      body: _pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
@@ -50,14 +61,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
+            icon: Icon(Icons.home_outlined), // Đã sửa icon tránh trùng lặp
+            selectedIcon: Icon(Icons.home),
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Subject Classes',
+            icon: Icon(Icons.class_outlined),
+            selectedIcon: Icon(Icons.class_),
+            label: 'Classes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.event_note_outlined),
+            selectedIcon: Icon(Icons.event_note),
+            label: 'Exams',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -77,7 +93,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           const Text('Trang chủ của Quản trị viên', style: TextStyle(fontSize: 24)),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: (){
+            onPressed: () {
               _handleLogout();
             },
             child: const Text('Đăng xuất'),

@@ -38,6 +38,9 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _academicYearController;
   late final TextEditingController _maxStudentsController;
+  late final TextEditingController _startDateController;
+  late final TextEditingController _numberOfSessionsController;
+  DateTime? _selectedStartDate;
 
   late Future<List<Subject>> _subjectsFuture;
   late Future<List<Room>> _roomsFuture;
@@ -83,6 +86,17 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
 
     _subjectsFuture = ApiService.getSubjects();
     _roomsFuture = ApiService.getRooms();
+
+    _selectedStartDate = widget.existing?.startDate;
+    _startDateController = TextEditingController(
+      text: _selectedStartDate != null
+          ? "${_selectedStartDate!.year}-${_selectedStartDate!.month.toString().padLeft(2, '0')}-${_selectedStartDate!.day.toString().padLeft(2, '0')}"
+          : '',
+    );
+    
+    _numberOfSessionsController = TextEditingController(
+      text: widget.existing?.numberOfSessions?.toString() ?? '',
+    );
   }
 
   @override
@@ -90,21 +104,41 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
     _nameController.dispose();
     _academicYearController.dispose();
     _maxStudentsController.dispose();
+    _startDateController.dispose();
+    _numberOfSessionsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedStartDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedStartDate = picked;
+        _startDateController.text =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
   }
 
   Future<void> _handleSubmit() async {
     if (_isSubmitting) return;
-
     if (!_formKey.currentState!.validate()) return;
 
     if (!_isEdit && _selectedSubject == null) {
       setState(() => _errorMessage = 'Vui lòng chọn môn học');
       return;
     }
-
     if (_selectedRoom == null) {
       setState(() => _errorMessage = 'Vui lòng chọn phòng học');
+      return;
+    }
+    if (_selectedStartDate == null) {
+      setState(() => _errorMessage = 'Vui lòng chọn ngày bắt đầu');
       return;
     }
 
@@ -121,6 +155,8 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
           semester: _selectedSemester,
           academicYear: _academicYearController.text.trim(),
           maxStudents: int.parse(_maxStudentsController.text.trim()),
+          startDate: _startDateController.text.trim(),
+          numberOfSessions: int.parse(_numberOfSessionsController.text.trim()),
           roomId: _selectedRoom!.id,
           weekday: _selectedWeekday,
           session: _selectedSession,
@@ -133,6 +169,8 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
           semester: _selectedSemester,
           academicYear: _academicYearController.text.trim(),
           maxStudents: int.parse(_maxStudentsController.text.trim()),
+          startDate: _startDateController.text.trim(),
+          numberOfSessions: int.parse(_numberOfSessionsController.text.trim()),
           roomId: _selectedRoom!.id,
           weekday: _selectedWeekday,
           session: _selectedSession,
@@ -140,7 +178,7 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop(true); // báo cho màn hình cha reload danh sách
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -350,6 +388,53 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
                     return null;
                   },
                 ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _startDateController,
+                        readOnly: true, // Chỉ cho chọn qua DatePicker
+                        onTap: _pickStartDate,
+                        decoration: const InputDecoration(
+                          labelText: 'Ngày bắt đầu',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Bắt buộc';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _numberOfSessionsController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Số buổi',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Bắt buộc';
+                          }
+                          if (int.tryParse(value.trim()) == null) {
+                            return 'Phải là số';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                
                 const SizedBox(height: 12),
 
                 TextFormField(

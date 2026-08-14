@@ -9,9 +9,10 @@ import '/core/models/room_model.dart';
 import '/core/models/enum_model.dart';
 import '/core/models/teaching_assignment_model.dart';
 import '/core/models/schedule_model.dart';
+import '/core/models/exam_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.102:8000';
+  static const String baseUrl = 'http://192.168.1.158:8000';
 
   static Future<Map<String, dynamic>> login(
     String email,
@@ -215,6 +216,8 @@ class ApiService {
     required Semester semester,
     required String academicYear,
     required int maxStudents,
+    required String startDate, // Định dạng YYYY-MM-DD
+    required int numberOfSessions,
     required int roomId,
     required Weekday weekday,
     required SessionPeriod session,
@@ -234,9 +237,16 @@ class ApiService {
         'semester': semester.value,
         'academic_year': academicYear,
         'max_students': maxStudents,
-        'room_id': roomId,
-        'weekday': weekday.value,
-        'session': session.value,
+        'start_date': startDate,
+        'number_of_sessions': numberOfSessions,
+        // Backend yêu cầu schedules là một list
+        'schedules': [
+          {
+            'room_id': roomId,
+            'weekday': weekday.value,
+            'session': session.value,
+          }
+        ],
       }),
     );
  
@@ -249,15 +259,14 @@ class ApiService {
     }
   }
 
-  /// Sửa chi tiết lớp học phần. Lưu ý: SubjectClassUpdate ở backend KHÔNG
-  /// có subject_id -> không thể đổi môn học của 1 lớp đã tạo, chỉ đổi
-  /// tên/lịch học/sĩ số/trạng thái.
   static Future<SubjectClass> updateSubjectClass({
     required int subjectClassId,
     required String subjectClassName,
     required Semester semester,
     required String academicYear,
     required int maxStudents,
+    required String startDate, // Định dạng YYYY-MM-DD
+    required int numberOfSessions,
     required int roomId,
     required Weekday weekday,
     required SessionPeriod session,
@@ -277,10 +286,17 @@ class ApiService {
         'semester': semester.value,
         'academic_year': academicYear,
         'max_students': maxStudents,
-        'room_id': roomId,
-        'weekday': weekday.value,
-        'session': session.value,
+        'start_date': startDate,
+        'number_of_sessions': numberOfSessions,
         'status': status.value,
+        // Backend yêu cầu schedules là một list
+        'schedules': [
+          {
+            'room_id': roomId,
+            'weekday': weekday.value,
+            'session': session.value,
+          }
+        ],
       }),
     );
  
@@ -372,6 +388,64 @@ class ApiService {
       return TeachingAssignment.fromJson(data as Map<String, dynamic>);
     } else {
       throw Exception(data['detail'] ?? 'Cập nhật phân công giảng dạy thất bại');
+    }
+  }
+
+  static Future<List<Exam>> getExams() async {
+    final url = Uri.parse('$baseUrl/exam');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((e) => Exam.fromJson(e as Map<String, dynamic>)).toList();
+    } else if (response.statusCode == 404) {
+      // Backend trả về 404 khi không có lịch thi nào
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch exams');
+    }
+  }
+
+  /// Tạo lịch thi mới
+  static Future<Exam> createExam({
+    required int subjectClassId,
+    required int roomId,
+    required String examDate,
+    required TypeOfExam type,
+    required TimeFrame timeFrame,
+    required int duration,
+  }) async {
+    final url = Uri.parse('$baseUrl/exam/create');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'subject_class_id': subjectClassId,
+        'room_id': roomId,
+        'exam_date': examDate,
+        'type': type.value,
+        'time_frame': timeFrame.value,
+        'duration': duration,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Exam.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Tạo lịch thi thất bại');
     }
   }
 }
