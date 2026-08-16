@@ -5,7 +5,10 @@ import '../../../core/models/exam_model.dart';
 import '../../../core/models/subject_class_model.dart';
 import '../../../core/models/room_model.dart';
 import '../../../core/models/enum_model.dart';
-import 'create_exam_screen.dart';
+import '../../../core/models/profile_model.dart';
+import '../../../core/models/exam_invigilator_model.dart'; 
+import 'create_exam_screen.dart'; 
+import 'assign_invigilator_screen.dart'; 
 
 class ExamScreen extends StatefulWidget {
   const ExamScreen({super.key});
@@ -18,11 +21,17 @@ class _ScreenData {
   final List<Exam> exams;
   final Map<int, SubjectClass> classesById;
   final Map<int, Room> roomsById;
+  final List<Profile> teachers;
+  final Map<int, Profile> teachersById;
+  final Map<int, List<ExamInvigilator>> invigilatorsByExamId;
 
   _ScreenData({
     required this.exams,
     required this.classesById,
     required this.roomsById,
+    required this.teachers,
+    required this.teachersById,
+    required this.invigilatorsByExamId,
   });
 }
 
@@ -36,39 +45,103 @@ class _ExamScreenState extends State<ExamScreen> {
   }
 
   Future<_ScreenData> _loadAll() async {
-    // API mock name based on typical implementation, update with exact API names
     final results = await Future.wait([
-      ApiService.getExams(), // Giả sử bạn có hàm lấy danh sách Exam
+      ApiService.getExams(),
       ApiService.getSubjectClass(),
       ApiService.getRooms(),
+      ApiService.getTeachers(),
     ]);
 
     final exams = results[0] as List<Exam>;
     final classes = results[1] as List<SubjectClass>;
     final rooms = results[2] as List<Room>;
+    final teachers = results[3] as List<Profile>;
+
+    final classesById = {for (final c in classes) c.id: c};
+    final roomsById = {for (final r in rooms) r.id: r};
+    final teachersById = {for (final t in teachers) t.id: t};
+
+    // Tương tự _loadAll bên subject class, fetch giảng viên coi thi cho từng lịch thi[cite: 6, 8, 9]
+    final invigilatorEntries = await Future.wait(
+      exams.map((e) async {
+        try {
+          final invs = await ApiService.getExamInvigilators(e.id);
+          return MapEntry(e.id, invs);
+        } catch (_) {
+          return MapEntry(e.id, <ExamInvigilator>[]);
+        }
+      }),
+    );
 
     return _ScreenData(
       exams: exams,
-      classesById: {for (final c in classes) c.id: c},
-      roomsById: {for (final r in rooms) r.id: r},
+      classesById: classesById,
+      roomsById: roomsById,
+      teachers: teachers,
+      teachersById: teachersById,
+      invigilatorsByExamId: Map.fromEntries(invigilatorEntries),
     );
   }
 
   Future<void> _refresh() async {
+    final future = _loadAll();
     setState(() {
-      _dataFuture = _loadAll();
+      _dataFuture = future;
     });
+    try {
+      await future;
+    } catch (_) {}
   }
 
+  // Mở form Tạo mới (existing: null)
   Future<void> _openCreateExamSheet() async {
     final created = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const CreateExamSheet(),
+      builder: (context) => const CreateExamSheet(), 
     );
-
     if (created == true) {
+      await _refresh();
+    }
+  }
+
+  // Mở form Chỉnh sửa (truyền existing model vào)
+  Future<void> _openEditExamSheet(Exam exam, SubjectClass? subjectClass, Room? room) async {
+    final updated = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      // Lưu ý: Sửa CreateExamSheet hỗ trợ nạp dữ liệu existing (giống SubjectClassFormSheet)[cite: 7]
+      builder: (context) => CreateExamSheet(
+        existing: exam,
+        existingClass: subjectClass,
+        existingRoom: room,
+      ),
+    );
+    if (updated == true) {
+      await _refresh();
+    }
+  }
+
+  // Mở màn hình Thêm/Sửa CBCT
+  Future<void> _openAssignInvigilatorSheet(
+    Exam exam,
+    List<Profile> teachers,
+    List<ExamInvigilator> currentInvigilators,
+  ) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      // Tương tự AssignTeacherScreen bên lớp học phần[cite: 6]
+      builder: (context) => AssignInvigilatorSheet(
+        exam: exam,
+        teachers: teachers,
+        currentInvigilators: currentInvigilators,
+      ),
+    );
+    if (result == true) {
       await _refresh();
     }
   }
@@ -76,15 +149,14 @@ class _ExamScreenState extends State<ExamScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE), // Nền xám nhạt nhẹ nhàng
       body: SafeArea(
         child: FutureBuilder<_ScreenData>(
           future: _dataFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF6E8CF0)));
+              return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF6E8CF0)));
             }
-
             if (snapshot.hasError) {
               return Center(child: Text('Lỗi tải dữ liệu: ${snapshot.error}'));
             }
@@ -97,7 +169,9 @@ class _ExamScreenState extends State<ExamScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: const [
                     SizedBox(height: 160),
-                    Center(child: Text('Chưa có lịch thi nào được xếp.', style: TextStyle(color: Colors.grey))),
+                    Center(
+                        child: Text('Chưa có lịch thi nào được xếp.',
+                            style: TextStyle(color: Colors.grey))),
                   ],
                 ),
               );
@@ -108,13 +182,21 @@ class _ExamScreenState extends State<ExamScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                 itemCount: data.exams.length,
-                separatorBuilder: (_,_) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final exam = data.exams[index];
                   final subjectClass = data.classesById[exam.subjectClassId];
                   final room = data.roomsById[exam.roomId];
+                  final invigilators = data.invigilatorsByExamId[exam.id] ?? [];
 
-                  return _buildExamCard(exam, subjectClass, room);
+                  return _buildExamCard(
+                    exam: exam,
+                    subjectClass: subjectClass,
+                    room: room,
+                    invigilators: invigilators,
+                    teachersById: data.teachersById,
+                    teachers: data.teachers,
+                  );
                 },
               ),
             );
@@ -130,7 +212,20 @@ class _ExamScreenState extends State<ExamScreen> {
     );
   }
 
-  Widget _buildExamCard(Exam exam, SubjectClass? subjectClass, Room? room) {
+  Widget _buildExamCard({
+    required Exam exam,
+    required SubjectClass? subjectClass,
+    required Room? room,
+    required List<ExamInvigilator> invigilators,
+    required Map<int, Profile> teachersById,
+    required List<Profile> teachers,
+  }) {
+    // Convert list id CBCT ra chuỗi tên (đề phòng 1 lịch có >=1 cán bộ)[cite: 8, 9, 10]
+    final invigilatorNames = invigilators.map((inv) {
+      final t = teachersById[inv.teacherId];
+      return t != null ? '${t.firstName} ${t.lastName}' : 'Không rõ';
+    }).join(', ');
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -139,7 +234,7 @@ class _ExamScreenState extends State<ExamScreen> {
         border: Border.all(color: const Color(0xFFE3E1F5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(4),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -149,16 +244,26 @@ class _ExamScreenState extends State<ExamScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
                   subjectClass?.subjectClassName ?? 'Lớp không xác định',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               _buildStatusBadge(exam.status),
+              // NÚT CHỈNH SỬA (Giống card subject class)[cite: 6]
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                tooltip: 'Sửa lịch thi',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _openEditExamSheet(exam, subjectClass, room),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -194,23 +299,63 @@ class _ExamScreenState extends State<ExamScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          
+          // DÒNG QUẢN LÝ CÁN BỘ COI THI (Tương tự giảng viên lớp học phần)[cite: 6]
+          Row(
+            children: [
+              const Icon(Icons.person_outline, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  invigilators.isNotEmpty ? invigilatorNames : 'Chưa phân công CBCT',
+                  style: TextStyle(
+                    color: invigilators.isNotEmpty ? Colors.black87 : Colors.grey,
+                    fontSize: 13,
+                    fontStyle: invigilators.isNotEmpty
+                        ? FontStyle.normal
+                        : FontStyle.italic,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _openAssignInvigilatorSheet(
+                  exam,
+                  teachers,
+                  invigilators,
+                ),
+                icon: Icon(
+                  invigilators.isNotEmpty ? Icons.edit : Icons.add,
+                  size: 16,
+                ),
+                label: Text(invigilators.isNotEmpty ? 'Sửa CBCT' : 'Thêm CBCT'),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _buildStatusBadge(ExamStatus status) {
-    // Tùy chỉnh màu theo enum ExamStatus (ví dụ)
     final color = status == ExamStatus.scheduled ? Colors.orange : Colors.green;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withAlpha(15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         status.name.toUpperCase(),
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+        style: TextStyle(
+            color: color, fontSize: 12, fontWeight: FontWeight.bold),
       ),
     );
   }

@@ -167,13 +167,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             padding: const EdgeInsets.all(4),
             child: ClipOval(
-              // avatarUrl hiện luôn null cho tới khi backend hỗ trợ; icon
-              // mặc định sẽ hiển thị thay thế mà không lỗi gì.
-              child: profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty
+              // Kiểm tra URL có hợp lệ không trước khi render Image.network
+              child: profile.avatarUrl.isNotEmpty
                   ? Image.network(
-                      profile.avatarUrl!,
+                      profile.avatarUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _buildAvatarPlaceholder(),
+                      // Nếu có lỗi (ví dụ url hỏng, rớt mạng), fallback về icon mặc định
+                      errorBuilder: (context, error, stackTrace) => 
+                          _buildAvatarPlaceholder(),
                     )
                   : _buildAvatarPlaceholder(),
             ),

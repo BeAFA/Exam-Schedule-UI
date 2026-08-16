@@ -8,7 +8,16 @@ import '../../../core/models/exam_model.dart';
 import '../../../core/models/schedule_model.dart';
 
 class CreateExamSheet extends StatefulWidget {
-  const CreateExamSheet({super.key});
+  final Exam? existing;
+  final SubjectClass? existingClass;
+  final Room? existingRoom;
+
+  const CreateExamSheet({
+    super.key,
+    this.existing,
+    this.existingClass,
+    this.existingRoom,
+  });
 
   @override
   State<CreateExamSheet> createState() => _CreateExamSheetState();
@@ -35,11 +44,10 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
   List<Schedule> _allSchedules = [];
 
   // Form Fields
-  TypeOfExam _selectedType = TypeOfExam.finalExam;
-  TimeFrame _selectedTimeFrame = TimeFrame.values.first; // Sẽ tự động gán sau
-  final TextEditingController _durationController = TextEditingController(
-    text: '90',
-  );
+  late TypeOfExam _selectedType;
+  late TimeFrame _selectedTimeFrame;
+  late TextEditingController _durationController;
+  late ExamStatus _selectedStatus;
 
   // Date selection state
   int _dateSelectionOption = 1; // 1: Kế tiếp buổi cuối, 2: Tùy chọn
@@ -49,9 +57,34 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  bool get _isEdit => widget.existing != null;
+
   @override
   void initState() {
     super.initState();
+    
+    _selectedType = widget.existing?.type ?? TypeOfExam.finalExam;
+    _selectedTimeFrame = widget.existing?.timeFrame ?? TimeFrame.values.first;
+    _durationController = TextEditingController(
+      text: widget.existing?.duration.toString() ?? '90',
+    );
+    _selectedStatus = widget.existing?.status ?? ExamStatus.scheduled;
+    
+    if (_isEdit) {
+      _selectedClass = widget.existingClass;
+      if (_selectedClass != null) {
+        _classSearchController.text = _selectedClass!.subjectClassName;
+      }
+      
+      _selectedRoom = widget.existingRoom;
+      if (_selectedRoom != null) {
+        _roomSearchController.text = _selectedRoom!.name;
+      }
+      
+      _selectedCustomDate = widget.existing?.examDate;
+      _dateSelectionOption = 2; // Always use custom date for editing
+    }
+
     _loadInitialData();
 
     _classSearchController.addListener(() {
@@ -93,6 +126,10 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
 
         _filteredRooms = rooms;
         _allSchedules = schedules;
+        
+        if (!_isEdit && _selectedClass != null) {
+            _calculateOption1Date();
+        }
       });
     } catch (e) {
       setState(() => _errorMessage = 'Không tải được dữ liệu ban đầu.');
@@ -201,7 +238,7 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
   Future<void> _handleSubmit() async {
     if (_isSubmitting) return;
 
-    if (_selectedClass == null) {
+    if (!_isEdit && _selectedClass == null) {
       setState(() => _errorMessage = 'Vui lòng chọn lớp học phần');
       return;
     }
@@ -232,15 +269,28 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
     });
 
     try {
-      await ApiService.createExam(
-        subjectClassId: _selectedClass!.id,
-        roomId: _selectedRoom!.id,
-        examDate:
-            "${examDate.year}-${examDate.month.toString().padLeft(2, '0')}-${examDate.day.toString().padLeft(2, '0')}",
-        type: _selectedType,
-        timeFrame: _selectedTimeFrame,
-        duration: int.parse(_durationController.text),
-      );
+      if (_isEdit) {
+        await ApiService.updateExam(
+          examId: widget.existing!.id,
+          roomId: _selectedRoom!.id,
+          examDate:
+              "${examDate.year}-${examDate.month.toString().padLeft(2, '0')}-${examDate.day.toString().padLeft(2, '0')}",
+          type: _selectedType,
+          timeFrame: _selectedTimeFrame,
+          duration: int.parse(_durationController.text),
+          status: _selectedStatus,
+        );
+      } else {
+        await ApiService.createExam(
+          subjectClassId: _selectedClass!.id,
+          roomId: _selectedRoom!.id,
+          examDate:
+              "${examDate.year}-${examDate.month.toString().padLeft(2, '0')}-${examDate.day.toString().padLeft(2, '0')}",
+          type: _selectedType,
+          timeFrame: _selectedTimeFrame,
+          duration: int.parse(_durationController.text),
+        );
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -286,60 +336,71 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                     ),
                   ),
                 ),
-                const Text(
-                  'Tạo lịch thi',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                Text(
+                  _isEdit ? 'Sửa lịch thi' : 'Tạo lịch thi',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 20),
 
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        Checkbox(
-                          checkColor: Colors.white,
-                          fillColor: WidgetStateProperty.resolveWith((states) {
-                            if (states.contains(WidgetState.selected)) {
-                              return const Color(0xFF6E8CF0);
-                            }
-                            return Colors.transparent;
-                          }),
-                          value: isChecked,
-                          onChanged: (bool? value) {
-                            setState(() {
-                              isChecked = value ?? false;
-                              _filterClasses();
-                            });
-                          },
-                        ),
-                        const Text(
-                          'Lọc những lớp học phần chưa có lịch thi',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                      ],
+                if (_isEdit) ...[
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Lớp học phần',
+                      border: OutlineInputBorder(),
                     ),
-                    _buildSearchDropdown(
-                      label: 'Lớp học phần',
-                      controller: _classSearchController,
-                      focusNode: _classSearchFocus,
-                      selectedItem: _selectedClass,
-                      items: _filteredClasses,
-                      displayString: (c) => c.subjectClassName,
-                      onSelect: (c) {
-                        setState(() {
-                          _selectedClass = c;
-                          _classSearchController.text = c.subjectClassName;
-                          _calculateOption1Date();
-                        });
-                      },
-                      onClear: () => setState(() {
-                        _selectedClass = null;
-                        _calculatedNextDate = null;
-                      }),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                    child: Text(widget.existingClass?.subjectClassName ?? 'Không rõ'),
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Checkbox(
+                            checkColor: Colors.white,
+                            fillColor: WidgetStateProperty.resolveWith((states) {
+                              if (states.contains(WidgetState.selected)) {
+                                return const Color(0xFF6E8CF0);
+                              }
+                              return Colors.transparent;
+                            }),
+                            value: isChecked,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                isChecked = value ?? false;
+                                _filterClasses();
+                              });
+                            },
+                          ),
+                          const Text(
+                            'Lọc những lớp học phần chưa có lịch thi',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      _buildSearchDropdown(
+                        label: 'Lớp học phần',
+                        controller: _classSearchController,
+                        focusNode: _classSearchFocus,
+                        selectedItem: _selectedClass,
+                        items: _filteredClasses,
+                        displayString: (c) => c.subjectClassName,
+                        onSelect: (c) {
+                          setState(() {
+                            _selectedClass = c;
+                            _classSearchController.text = c.subjectClassName;
+                            _calculateOption1Date();
+                          });
+                        },
+                        onClear: () => setState(() {
+                          _selectedClass = null;
+                          _calculatedNextDate = null;
+                        }),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 // Hình thức chọn ngày
                 Container(
@@ -373,7 +434,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                                 children: [
                                   Radio<int>(
                                     value: 1,
-                                    // Đã xóa groupValue và onChanged tại đây
                                     activeColor: const Color(0xFF6E8CF0),
                                   ),
                                   Expanded(
@@ -414,7 +474,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                                 children: [
                                   Radio<int>(
                                     value: 2,
-                                    // Đã xóa groupValue và onChanged tại đây
                                     activeColor: const Color(0xFF6E8CF0),
                                   ),
                                   const Text(
@@ -474,7 +533,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                           labelText: 'Loại hình',
                           border: OutlineInputBorder(),
                         ),
-                        // Thay 'value' bằng 'initialValue'
                         initialValue: _selectedType,
                         items: const [
                           DropdownMenuItem(
@@ -511,7 +569,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                     labelText: 'Khung giờ bắt đầu',
                     border: OutlineInputBorder(),
                   ),
-                  // Thay 'value' bằng 'initialValue'
                   initialValue: _selectedTimeFrame,
                   items: TimeFrame.values
                       .map(
@@ -521,6 +578,26 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                       .toList(),
                   onChanged: (v) => setState(() => _selectedTimeFrame = v!),
                 ),
+
+                if (_isEdit) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<ExamStatus>(
+                    decoration: const InputDecoration(
+                      labelText: 'Trạng thái',
+                      border: OutlineInputBorder(),
+                    ),
+                    initialValue: _selectedStatus,
+                    items: ExamStatus.values
+                        .map(
+                          (status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _selectedStatus = v!),
+                  ),
+                ],
 
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 12),
@@ -548,7 +625,7 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                           width: 20,
                           child: CircularProgressIndicator(color: Colors.white),
                         )
-                      : const Text('Xếp lịch thi'),
+                      : Text(_isEdit ? 'Lưu thay đổi' : 'Xếp lịch thi'),
                 ),
               ],
             ),
@@ -576,7 +653,7 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
           decoration: InputDecoration(
             labelText: label,
             border: const OutlineInputBorder(),
-            suffixIcon: selectedItem != null
+            suffixIcon: selectedItem != null && !_isEdit
                 ? IconButton(
                     icon: const Icon(Icons.clear, size: 20),
                     onPressed: () {
@@ -587,11 +664,12 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                   )
                 : const Icon(Icons.search),
           ),
+          readOnly: _isEdit && label == 'Lớp học phần',
           onChanged: (val) {
             if (selectedItem != null) onClear();
           },
         ),
-        if (focusNode.hasFocus) ...[
+        if (focusNode.hasFocus && !(_isEdit && label == 'Lớp học phần')) ...[
           const SizedBox(height: 4),
           Container(
             constraints: const BoxConstraints(maxHeight: 200),

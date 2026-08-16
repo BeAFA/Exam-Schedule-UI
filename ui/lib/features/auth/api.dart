@@ -10,9 +10,10 @@ import '/core/models/enum_model.dart';
 import '/core/models/teaching_assignment_model.dart';
 import '/core/models/schedule_model.dart';
 import '/core/models/exam_model.dart';
+import '/core/models/exam_invigilator_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.42:8000';
+  static const String baseUrl = 'http://192.168.1.158:8000';
 
   static Future<Map<String, dynamic>> login(
     String email,
@@ -446,6 +447,113 @@ class ApiService {
       return Exam.fromJson(data as Map<String, dynamic>);
     } else {
       throw Exception(data['detail'] ?? 'Tạo lịch thi thất bại');
+    }
+  }
+
+  static Future<Exam> updateExam({
+    required int examId,
+    required int roomId,
+    required String examDate,
+    required TypeOfExam type,
+    required TimeFrame timeFrame,
+    required int duration,
+    required ExamStatus status,
+  }) async {
+    final url = Uri.parse('$baseUrl/exam/$examId/update');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'room_id': roomId,
+        'exam_date': examDate,
+        'type': type.value,
+        'time_frame': timeFrame.value,
+        'duration': duration,
+        'status': status.value,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return Exam.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Cập nhật lịch thi thất bại');
+    }
+  }
+
+  static Future<List<ExamInvigilator>> getExamInvigilators(int examId) async {
+    final url = Uri.parse('$baseUrl/exam_invigilator?exam_id=$examId');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((e) => ExamInvigilator.fromJson(e as Map<String, dynamic>)).toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Lấy danh sách CBCT thất bại');
+    }
+  }
+
+  static Future<ExamInvigilator> createExamInvigilator({
+    required int examId,
+    required int teacherId,
+  }) async {
+    final url = Uri.parse('$baseUrl/exam_invigilator/create');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'exam_id': examId,
+        'teacher_id': teacherId,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return ExamInvigilator.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Phân công CBCT thất bại');
+    }
+  }
+
+  static Future<ExamInvigilator> updateExamInvigilator({
+    required int examInvigilatorId,
+    required int teacherId,
+  }) async {
+    final url = Uri.parse('$baseUrl/exam_invigilator/$examInvigilatorId/update');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'teacher_id': teacherId}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return ExamInvigilator.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Cập nhật CBCT thất bại');
     }
   }
 }

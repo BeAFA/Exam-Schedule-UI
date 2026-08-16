@@ -5,7 +5,7 @@ class Profile {
   final String userCode;
   final String email;
   final String role;
-  final String? avatarUrl;
+  final String avatarUrl;
 
   Profile({
     required this.id,
@@ -14,7 +14,7 @@ class Profile {
     required this.email,
     required this.role,
     required this.userCode,
-    this.avatarUrl,
+    required this.avatarUrl,
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) {
@@ -25,7 +25,7 @@ class Profile {
       lastName: json['last_name'] ?? '',
       email: json['email'] ?? '',
       role: json['role'] ?? '',
-      avatarUrl: json['avatar_url'] as String?,
+      avatarUrl: json['avatar'],
     );
   }
 }
