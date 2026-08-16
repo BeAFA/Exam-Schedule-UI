@@ -72,7 +72,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildInfoPill(
                   icon: Icons.person_outline,
                   label: 'Họ và tên',
-                  value: profile.fullName,
+                  value: '${profile.firstName} ${profile.lastName}',
                 ),
                 const SizedBox(height: 14),
                 _buildInfoPill(
@@ -173,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? Image.network(
                       profile.avatarUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildAvatarPlaceholder(),
+                      errorBuilder: (_, _, _) => _buildAvatarPlaceholder(),
                     )
                   : _buildAvatarPlaceholder(),
             ),

@@ -26,6 +26,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   void _handleLogout() async {
     await ApiService.logout();
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),

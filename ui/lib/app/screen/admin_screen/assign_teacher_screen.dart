@@ -53,7 +53,7 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
     // Khởi tạo text hiển thị nếu đã có giảng viên
     if (_selectedTeacher != null) {
       _searchController.text =
-          '${_selectedTeacher!.fullName} (${_selectedTeacher!.userCode})';
+          '${_selectedTeacher!.firstName} ${_selectedTeacher!.lastName} (${_selectedTeacher!.userCode})';
     }
 
     // Lắng nghe thay đổi text để lọc danh sách giảng viên
@@ -65,7 +65,7 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
         } else {
           _filteredTeachers = widget.teachers
               .where((t) =>
-                  t.fullName.toLowerCase().contains(query) ||
+                  t.firstName.toLowerCase().contains(query) || t.lastName.toLowerCase().contains(query) ||
                   t.userCode.toLowerCase().contains(query))
               .toList();
         }
@@ -234,12 +234,12 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
                               final t = _filteredTeachers[index];
                               return ListTile(
                                 dense: true,
-                                title: Text('${t.fullName} (${t.userCode})'),
+                                title: Text('${t.firstName} ${t.lastName} (${t.userCode})'),
                                 onTap: () {
                                   setState(() {
                                     _selectedTeacher = t;
                                     _searchController.text =
-                                        '${t.fullName} (${t.userCode})';
+                                        '${t.firstName} ${t.lastName} (${t.userCode})';
                                     _searchFocus.unfocus(); // Đóng danh sách
                                     _errorMessage = null;
                                   });

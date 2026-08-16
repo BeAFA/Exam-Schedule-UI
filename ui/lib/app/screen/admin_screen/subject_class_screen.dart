@@ -204,7 +204,7 @@ class _SubjectClassScreenState extends State<SubjectClassScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                 itemCount: classes.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final item = classes[index];
                   final subjectName = data.subjectsById[item.subjectId]?.name;
@@ -329,7 +329,7 @@ class _SubjectClassScreenState extends State<SubjectClassScreen> {
               Expanded(
                 child: Text(
                   teacher != null
-                      ? teacher.fullName
+                      ? '${teacher.firstName} ${teacher.lastName}'
                       : 'Chưa phân công giảng viên',
                   style: TextStyle(
                     color: teacher != null ? Colors.black87 : Colors.grey,

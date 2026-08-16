@@ -93,7 +93,7 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
           ? "${_selectedStartDate!.year}-${_selectedStartDate!.month.toString().padLeft(2, '0')}-${_selectedStartDate!.day.toString().padLeft(2, '0')}"
           : '',
     );
-    
+
     _numberOfSessionsController = TextEditingController(
       text: widget.existing?.numberOfSessions?.toString() ?? '',
     );
@@ -193,8 +193,9 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      // Đẩy sheet lên trên bàn phím ảo.
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 50),
+      curve: Curves.linear,
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
@@ -434,7 +435,7 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 12),
 
                 TextFormField(

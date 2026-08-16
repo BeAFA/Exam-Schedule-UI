@@ -108,7 +108,7 @@ class _ExamScreenState extends State<ExamScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                 itemCount: data.exams.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_,_) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final exam = data.exams[index];
                   final subjectClass = data.classesById[exam.subjectClassId];

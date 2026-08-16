@@ -1,6 +1,7 @@
 class Profile {
   final int id;
-  final String fullName;
+  final String firstName;
+  final String lastName;
   final String userCode;
   final String email;
   final String role;
@@ -8,7 +9,8 @@ class Profile {
 
   Profile({
     required this.id,
-    required this.fullName,
+    required this.firstName,
+    required this.lastName,
     required this.email,
     required this.role,
     required this.userCode,
@@ -19,7 +21,8 @@ class Profile {
     return Profile(
       id: json['id'] ?? 0,
       userCode: json['user_code'] ?? '',
-      fullName: json['full_name'] ?? '',
+      firstName: json['first_name'] ?? '',
+      lastName: json['last_name'] ?? '',
       email: json['email'] ?? '',
       role: json['role'] ?? '',
       avatarUrl: json['avatar_url'] as String?,
