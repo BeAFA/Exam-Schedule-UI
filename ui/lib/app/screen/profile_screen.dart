@@ -29,15 +29,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // TODO: Backend chưa có endpoint/cột lưu avatar. Khi có, thay nội dung
-  // hàm này bằng: mở image picker -> upload lên server -> nhận avatar_url
-  // -> setState lại _profileFuture (gọi lại ApiService.profile()).
-  void _handleChangeAvatar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tính năng đổi ảnh đại diện sẽ sớm ra mắt')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Profile>(
@@ -177,27 +168,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _buildAvatarPlaceholder(),
                     )
                   : _buildAvatarPlaceholder(),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: GestureDetector(
-              onTap: _handleChangeAvatar,
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF6E8CF0),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: const Icon(
-                  Icons.camera_alt,
-                  size: 16,
-                  color: Colors.white,
-                ),
-              ),
             ),
           ),
         ],

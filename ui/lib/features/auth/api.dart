@@ -13,7 +13,7 @@ import '/core/models/exam_model.dart';
 import '/core/models/exam_invigilator_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.158:8000';
+  static const String baseUrl = 'http://192.168.1.159:8000';
 
   static Future<Map<String, dynamic>> login(
     String email,
