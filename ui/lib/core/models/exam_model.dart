@@ -9,6 +9,7 @@ class Exam {
   final TimeFrame timeFrame;
   final int duration;
   final ExamStatus status;
+  final bool? isActive;
 
   Exam({
     required this.id,
@@ -19,6 +20,7 @@ class Exam {
     required this.timeFrame,
     required this.duration,
     required this.status,
+    this.isActive,
   });
 
   factory Exam.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class Exam {
       timeFrame: TimeFrame.fromJson(json['time_frame']),
       duration: json['duration'],
       status: ExamStatus.fromJson(json['status'] ?? 'SCHEDULED'),
+      isActive: json['is_active']
     );
   }
 }

@@ -5,15 +5,6 @@ import '../../../core/models/profile_model.dart';
 import '../../../core/models/subject_class_model.dart';
 import '../../../core/models/teaching_assignment_model.dart';
 
-/// Bottom sheet Thêm/Sửa giảng viên giảng dạy cho 1 lớp học phần.
-///
-/// - [existingAssignment] == null -> gọi API tạo phân công mới
-///   (`POST /teaching_assignment/create`).
-/// - [existingAssignment] != null -> gọi API cập nhật phân công đã có
-///   (`POST /teaching_assignment/{id}/update`).
-///
-/// Danh sách [teachers] được truyền từ màn hình cha (đã tải sẵn 1 lần)
-/// để tránh gọi lại `GET /teacher` mỗi lần mở sheet.
 class AssignTeacherScreen extends StatefulWidget {
   final SubjectClass subjectClass;
   final List<Profile> teachers;
@@ -37,7 +28,6 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
-  // Sử dụng Controller và FocusNode để làm Custom Autocomplete (Inline)
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   List<Profile> _filteredTeachers = [];
@@ -50,13 +40,11 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
     _selectedTeacher = widget.currentTeacher;
     _filteredTeachers = widget.teachers;
 
-    // Khởi tạo text hiển thị nếu đã có giảng viên
     if (_selectedTeacher != null) {
       _searchController.text =
           '${_selectedTeacher!.firstName} ${_selectedTeacher!.lastName} (${_selectedTeacher!.userCode})';
     }
 
-    // Lắng nghe thay đổi text để lọc danh sách giảng viên
     _searchController.addListener(() {
       final query = _searchController.text.toLowerCase();
       setState(() {
@@ -65,14 +53,14 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
         } else {
           _filteredTeachers = widget.teachers
               .where((t) =>
-                  t.firstName.toLowerCase().contains(query) || t.lastName.toLowerCase().contains(query) ||
+                  t.firstName.toLowerCase().contains(query) ||
+                  t.lastName.toLowerCase().contains(query) ||
                   t.userCode.toLowerCase().contains(query))
               .toList();
         }
       });
     });
 
-    // Lắng nghe trạng thái focus để hiện/ẩn danh sách
     _searchFocus.addListener(() {
       setState(() {});
     });
@@ -99,22 +87,46 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
     });
 
     try {
-      final TeachingAssignment result;
       if (_isEdit) {
-        result = await ApiService.updateTeachingAssignment(
+        await ApiService.updateTeachingAssignment(
           teachingAssignmentId: widget.existingAssignment!.id,
           teacherId: _selectedTeacher!.id,
           subjectClassId: widget.subjectClass.id,
         );
       } else {
-        result = await ApiService.createTeachingAssignment(
+        await ApiService.createTeachingAssignment(
           teacherId: _selectedTeacher!.id,
           subjectClassId: widget.subjectClass.id,
         );
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop(result); // báo cho màn hình cha reload
+      Navigator.of(context).pop(true); // báo cho màn hình cha reload
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _handleRemove() async {
+    if (_isSubmitting || widget.existingAssignment == null) return;
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ApiService.changeTeachingAssignmentActive([widget.existingAssignment!.id]);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true); // báo cho màn hình cha reload
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -175,7 +187,6 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 )
               else ...[
-                // Trường tìm kiếm giảng viên
                 TextFormField(
                   controller: _searchController,
                   focusNode: _searchFocus,
@@ -189,7 +200,7 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _selectedTeacher = null);
-                              _searchFocus.requestFocus(); // Mở lại danh sách
+                              _searchFocus.requestFocus();
                             },
                           )
                         : const Icon(Icons.search),
@@ -201,7 +212,6 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
                   },
                 ),
 
-                // Danh sách (Inline dropdown) chỉ hiện khi đang focus vào ô nhập
                 if (_searchFocus.hasFocus) ...[
                   const SizedBox(height: 4),
                   Container(
@@ -240,7 +250,7 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
                                     _selectedTeacher = t;
                                     _searchController.text =
                                         '${t.firstName} ${t.lastName} (${t.userCode})';
-                                    _searchFocus.unfocus(); // Đóng danh sách
+                                    _searchFocus.unfocus();
                                     _errorMessage = null;
                                   });
                                 },

@@ -102,7 +102,7 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
     try {
       // Tải song song Lớp, Phòng, Lịch thi (để lọc) và Lịch học (để tính ngày)
       final results = await Future.wait([
-        ApiService.getSubjectClass(),
+        ApiService.getSubjectClasses(),
         ApiService.getRooms(),
         ApiService.getExams(),
         ApiService.getSchedules(),

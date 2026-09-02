@@ -42,7 +42,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Future<Map<String, dynamic>> _loadAllData() async {
     // Tải thêm thông tin Môn học (Subjects) để hiển thị tên môn
     final results = await Future.wait([
-      ApiService.getSubjectClass(),
+      ApiService.getSubjectClasses(),
       ApiService.getSchedules(),
       ApiService.getExams(),
       ApiService.getRooms(),

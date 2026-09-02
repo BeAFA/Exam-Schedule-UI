@@ -10,6 +10,7 @@ class SubjectClass {
   final int? maxStudents;
   final DateTime? startDate;
   final int? numberOfSessions;
+  final bool? isActive;
 
   SubjectClass({
     required this.id,
@@ -21,6 +22,7 @@ class SubjectClass {
     this.maxStudents,
     this.startDate,
     this.numberOfSessions,
+    this.isActive,
   });
 
   factory SubjectClass.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ class SubjectClass {
       maxStudents: json['max_students'],
       startDate: json['start_date'] != null ? DateTime.parse(json['start_date']) : null,
       numberOfSessions: json['number_of_sessions'],
+      isActive: json['is_active']
     );
   }
 }

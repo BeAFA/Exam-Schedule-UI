@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../features/auth/api.dart';
 import '../../../core/models/profile_model.dart';
 import '../../../core/models/exam_model.dart';
@@ -22,6 +21,7 @@ class AssignInvigilatorSheet extends StatefulWidget {
 }
 
 class _AssignInvigilatorSheetState extends State<AssignInvigilatorSheet> {
+  late List<int> _assignedTeacherIds;
   Profile? _selectedTeacher;
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -30,43 +30,30 @@ class _AssignInvigilatorSheetState extends State<AssignInvigilatorSheet> {
   final FocusNode _searchFocus = FocusNode();
   List<Profile> _filteredTeachers = [];
 
-  bool get _isEdit => widget.currentInvigilators.isNotEmpty;
-  ExamInvigilator? get _existingInvigilator => _isEdit ? widget.currentInvigilators.first : null;
-
   @override
   void initState() {
     super.initState();
-    _filteredTeachers = widget.teachers;
-
-    if (_isEdit) {
-      final existingTeacherId = _existingInvigilator!.teacherId;
-      // Dùng firstWhere với orElse để an toàn hơn
-      _selectedTeacher = widget.teachers.where((t) => t.id == existingTeacherId).firstOrNull;
-      
-      if (_selectedTeacher != null) {
-        _searchController.text =
-            '${_selectedTeacher!.firstName} ${_selectedTeacher!.lastName} (${_selectedTeacher!.userCode})';
-      }
-    }
+    _assignedTeacherIds = widget.currentInvigilators
+        .map((i) => i.teacherId)
+        .toList();
+    _refreshFilteredTeachers();
 
     _searchController.addListener(() {
       final query = _searchController.text.toLowerCase();
       setState(() {
         if (query.isEmpty) {
-          _filteredTeachers = widget.teachers;
+          _refreshFilteredTeachers();
         } else {
-          _filteredTeachers = widget.teachers
-              .where((t) =>
-                  t.firstName.toLowerCase().contains(query) || 
-                  t.lastName.toLowerCase().contains(query) ||
-                  t.userCode.toLowerCase().contains(query))
+          _filteredTeachers = _availableTeachers
+              .where(
+                (t) =>
+                    t.firstName.toLowerCase().contains(query) ||
+                    t.lastName.toLowerCase().contains(query) ||
+                    t.userCode.toLowerCase().contains(query),
+              )
               .toList();
         }
       });
-    });
-
-    _searchFocus.addListener(() {
-      setState(() {});
     });
   }
 
@@ -77,44 +64,64 @@ class _AssignInvigilatorSheetState extends State<AssignInvigilatorSheet> {
     super.dispose();
   }
 
-  Future<void> _handleSubmit() async {
-    if (_isSubmitting) return;
+  List<Profile> get _availableTeachers {
+    return widget.teachers
+        .where((t) => !_assignedTeacherIds.contains(t.id))
+        .toList();
+  }
 
-    if (_selectedTeacher == null) {
-      setState(() => _errorMessage = 'Vui lòng chọn cán bộ coi thi');
-      return;
-    }
+  void _refreshFilteredTeachers() {
+    _filteredTeachers = _availableTeachers;
+  }
 
+  Future<void> _syncInvigilators(List<int> newTeacherIds) async {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
 
     try {
-      if (_isEdit) {
-        await ApiService.updateExamInvigilator(
-          examInvigilatorId: _existingInvigilator!.id,
-          teacherId: _selectedTeacher!.id,
-        );
-      } else {
-        await ApiService.createExamInvigilator(
-          examId: widget.exam.id,
-          teacherId: _selectedTeacher!.id,
-        );
-      }
-
+      await ApiService.setExamInvigilators(
+        examId: widget.exam.id,
+        teacherIds: newTeacherIds,
+      );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      setState(() {
+        _assignedTeacherIds = newTeacherIds;
+        _selectedTeacher = null;
+        _searchController.clear();
+        _refreshFilteredTeachers();
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  void _handleAdd() {
+    if (_selectedTeacher == null) {
+      setState(() => _errorMessage = 'Vui lòng chọn cán bộ coi thi');
+      return;
+    }
+    final nextList = [..._assignedTeacherIds, _selectedTeacher!.id];
+    _syncInvigilators(nextList);
+  }
+
+  void _handleRemove(int teacherId) {
+    final nextList = _assignedTeacherIds
+        .where((id) => id != teacherId)
+        .toList();
+    _syncInvigilators(nextList);
+  }
+
+  String _teacherLabel(int teacherId) {
+    final t = widget.teachers.where((p) => p.id == teacherId).firstOrNull;
+    if (t == null) return 'Giáo viên #$teacherId';
+    return '${t.firstName} ${t.lastName} (${t.userCode})';
   }
 
   @override
@@ -145,132 +152,94 @@ class _AssignInvigilatorSheetState extends State<AssignInvigilatorSheet> {
                   ),
                 ),
               ),
-              Text(
-                _isEdit ? 'Đổi cán bộ coi thi' : 'Phân công cán bộ coi thi',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+              const Text(
+                'Cán bộ coi thi',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Ca thi ngày ${widget.exam.examDate.day}/${widget.exam.examDate.month}/${widget.exam.examDate.year} - ${widget.exam.timeFrame.value}',
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-
-              if (widget.teachers.isEmpty)
+              const SizedBox(height: 16),
+              if (_assignedTeacherIds.isEmpty)
                 const Text(
-                  'Chưa có giảng viên nào trong hệ thống.',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  'Chưa có cán bộ coi thi nào được phân công.',
+                  style: TextStyle(color: Colors.grey),
                 )
-              else ...[
-                // Trường tìm kiếm CBCT
-                TextFormField(
-                  controller: _searchController,
-                  focusNode: _searchFocus,
-                  decoration: InputDecoration(
-                    labelText: 'Cán bộ coi thi',
-                    hintText: 'Gõ để tìm cán bộ...',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 20),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _selectedTeacher = null);
-                              _searchFocus.requestFocus(); // Mở lại danh sách
-                            },
-                          )
-                        : const Icon(Icons.search),
-                  ),
-                  onChanged: (_) {
-                    if (_selectedTeacher != null) {
-                      setState(() => _selectedTeacher = null);
-                    }
-                  },
-                ),
-
-                // Danh sách Inline dropdown
-                if (_searchFocus.hasFocus) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 220),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        )
-                      ],
+              else
+                ..._assignedTeacherIds.map(
+                  (tId) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.person_outline),
+                      title: Text(_teacherLabel(tId)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => _handleRemove(tId),
+                      ),
                     ),
-                    child: _filteredTeachers.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text(
-                              'Không tìm thấy cán bộ coi thi.',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            itemCount: _filteredTeachers.length,
-                            itemBuilder: (context, index) {
-                              final t = _filteredTeachers[index];
-                              return ListTile(
-                                dense: true,
-                                title: Text('${t.firstName} ${t.lastName} (${t.userCode})'),
-                                onTap: () {
-                                  setState(() {
-                                    _selectedTeacher = t;
-                                    _searchController.text =
-                                        '${t.firstName} ${t.lastName} (${t.userCode})';
-                                    _searchFocus.unfocus(); // Đóng danh sách
-                                    _errorMessage = null;
-                                  });
-                                },
-                              );
-                            },
-                          ),
                   ),
-                ],
-              ],
-
+                ),
+              const Divider(height: 24),
+              TextFormField(
+                controller: _searchController,
+                focusNode: _searchFocus,
+                decoration: InputDecoration(
+                  labelText: 'Tìm giáo viên',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _selectedTeacher = null);
+                          },
+                        )
+                      : const Icon(Icons.search),
+                ),
+              ),
+              if (_searchFocus.hasFocus && _filteredTeachers.isNotEmpty)
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _filteredTeachers.length,
+                    itemBuilder: (context, index) {
+                      final t = _filteredTeachers[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          '${t.firstName} ${t.lastName} (${t.userCode})',
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _selectedTeacher = t;
+                            _searchController.text =
+                                '${t.firstName} ${t.lastName} (${t.userCode})';
+                            _searchFocus.unfocus();
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: _isSubmitting ? null : _handleAdd,
+                icon: const Icon(Icons.add),
+                label: const Text('Thêm CBCT'),
+              ),
               if (_errorMessage != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text(
                   _errorMessage!,
                   style: const TextStyle(color: Colors.red),
                   textAlign: TextAlign.center,
                 ),
               ],
-
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _handleSubmit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6E8CF0),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(_isEdit ? 'Lưu thay đổi' : 'Phân công'),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Xong'),
               ),
             ],
           ),
