@@ -1,9 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '/core/token_storage.dart';
+import '/core/models/profile_model.dart';
+import '/core/models/subject_class_model.dart';
+import '/core/models/subject_model.dart';
+import '/core/models/room_model.dart';
+import '/core/models/enum_model.dart';
+import '/core/models/teaching_assignment_model.dart';
+import '/core/models/schedule_model.dart';
+import '/core/models/exam_model.dart';
+import '/core/models/exam_invigilator_model.dart';
 
-class AuthApi {
-  static const String baseUrl = 'http://10.0.2.2:8000';
+class ApiService {
+  static const String baseUrl = 'http://192.168.1.36:8000';
 
   static Future<Map<String, dynamic>> login(
     String email,
@@ -24,6 +33,563 @@ class AuthApi {
       return data;
     } else {
       throw Exception(data['detail'] ?? 'Đăng nhập thất bại');
+    }
+  }
+
+  static Future<Profile> profile() async {
+    final url = Uri.parse('$baseUrl/me');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return Profile.fromJson(data);
+    } else {
+      throw Exception('Failed to fetch profile');
+    }
+  }
+
+  static Future<Profile> getCurrentUser() async {
+    final token = await TokenStorage.getToken();
+
+    if (token == null) {
+      throw Exception('No token');
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/me'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Unauthorized');
+    }
+
+    return Profile.fromJson(jsonDecode(response.body));
+  }
+
+  static Future<void> logout() async {
+    final token = await TokenStorage.getToken();
+    if (token == null) {
+      await TokenStorage.clearSession();
+      return;
+    }
+
+    final url = Uri.parse('$baseUrl/logout');
+    try {
+      await http.post(url, headers: {'Authorization': 'Bearer $token'});
+    } catch (_) {}
+    await TokenStorage.clearSession();
+  }
+
+  static Future<List<Subject>> getSubjects() async {
+    final url = Uri.parse('$baseUrl/subject');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data
+          .map((e) => Subject.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch subjects');
+    }
+  }
+
+  static Future<List<Room>> getRooms() async {
+    final url = Uri.parse('$baseUrl/room');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((e) => Room.fromJson(e as Map<String, dynamic>)).toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch rooms');
+    }
+  }
+
+  static Future<List<Schedule>> getSchedules() async {
+    final url = Uri.parse('$baseUrl/schedule');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data
+          .map((e) => Schedule.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch schedules');
+    }
+  }
+
+  static Future<List<SubjectClass>> getSubjectClasses() async {
+    final url = Uri.parse('$baseUrl/subject_class');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data
+          .map((e) => SubjectClass.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch subject class');
+    }
+  }
+
+  static Future<List<Profile>> getTeachers() async {
+    final url = Uri.parse('$baseUrl/teacher');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((e) {
+        final map = e as Map<String, dynamic>;
+        final fullName = '${map['first_name'] ?? ''} ${map['last_name'] ?? ''}'
+            .trim();
+        return Profile.fromJson({
+          ...map,
+          'full_name': fullName,
+          'role': 'TEACHER',
+        });
+      }).toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch teachers');
+    }
+  }
+
+  static Future<SubjectClass> createSubjectClass({
+    required String subjectClassName,
+    required int subjectId,
+    required Semester semester,
+    required String academicYear,
+    required int maxStudents,
+    required String startDate,
+    required int numberOfSessions,
+    required int roomId,
+    required Weekday weekday,
+    required SessionPeriod session,
+  }) async {
+    final url = Uri.parse('$baseUrl/subject_class/create');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'subject_class_name': subjectClassName,
+        'subject_id': subjectId,
+        'semester': semester.value,
+        'academic_year': academicYear,
+        'max_students': maxStudents,
+        'start_date': startDate,
+        'number_of_sessions': numberOfSessions,
+        'schedules': [
+          {
+            'room_id': roomId,
+            'weekday': weekday.value,
+            'session': session.value,
+          },
+        ],
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return SubjectClass.fromJson(
+        data['subject_class'] as Map<String, dynamic>,
+      );
+    } else {
+      throw Exception(data['detail'] ?? 'Tạo lớp học phần thất bại');
+    }
+  }
+
+  static Future<SubjectClass> updateSubjectClass({
+    required int subjectClassId,
+    required String subjectClassName,
+    required Semester semester,
+    required String academicYear,
+    required int maxStudents,
+    required String startDate,
+    required int numberOfSessions,
+    required int roomId,
+    required Weekday weekday,
+    required SessionPeriod session,
+    required ClassStatus status,
+  }) async {
+    final url = Uri.parse('$baseUrl/subject_class/$subjectClassId/update');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'subject_class_name': subjectClassName,
+        'semester': semester.value,
+        'academic_year': academicYear,
+        'max_students': maxStudents,
+        'start_date': startDate,
+        'number_of_sessions': numberOfSessions,
+        'status': status.value,
+        'schedules': [
+          {
+            'room_id': roomId,
+            'weekday': weekday.value,
+            'session': session.value,
+          },
+        ],
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return SubjectClass.fromJson(
+        data['subject_class'] as Map<String, dynamic>,
+      );
+    } else {
+      throw Exception(data['detail'] ?? 'Cập nhật lớp học phần thất bại');
+    }
+  }
+
+  static Future<void> changeSubjectClassActive({
+    required List<int> ids,
+    required bool isActive,
+  }) async {
+    final url = Uri.parse('$baseUrl/subject_class/change_active');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'ids': ids, 'is_active': isActive}),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Cập nhật trạng thái lớp thất bại');
+    }
+  }
+
+  static Future<TeachingAssignment?> getTeachingAssignment(
+    int subjectClassId,
+  ) async {
+    final url = Uri.parse(
+      '$baseUrl/subject_class/$subjectClassId/teaching_assignment',
+    );
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data == null) return null;
+      return TeachingAssignment.fromJson(data as Map<String, dynamic>);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch teaching assignment');
+    }
+  }
+
+  static Future<TeachingAssignment> createTeachingAssignment({
+    required int teacherId,
+    required int subjectClassId,
+  }) async {
+    final url = Uri.parse('$baseUrl/teaching_assignment/create');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'teacher_id': teacherId,
+        'subject_class_id': subjectClassId,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return TeachingAssignment.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Phân công giảng dạy thất bại');
+    }
+  }
+
+  static Future<TeachingAssignment> updateTeachingAssignment({
+    required int teachingAssignmentId,
+    required int teacherId,
+    required int subjectClassId,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/teaching_assignment/$teachingAssignmentId/update',
+    );
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'teacher_id': teacherId,
+        'subject_class_id': subjectClassId,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return TeachingAssignment.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(
+        data['detail'] ?? 'Cập nhật phân công giảng dạy thất bại',
+      );
+    }
+  }
+
+  static Future<void> changeTeachingAssignmentActive(List<int> ids) async {
+    final url = Uri.parse('$baseUrl/teaching_assignment/s_delete');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'ids': ids}),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Xoá giảng viên giảng dạy thất bại');
+    }
+  }
+
+  static Future<List<Exam>> getExams() async {
+    final url = Uri.parse('$baseUrl/exam');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((e) => Exam.fromJson(e as Map<String, dynamic>)).toList();
+    } else if (response.statusCode == 404) {
+      // Backend trả về 404 khi không có lịch thi nào
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Failed to fetch exams');
+    }
+  }
+
+  static Future<Exam> createExam({
+    required int subjectClassId,
+    required int roomId,
+    required String examDate,
+    required TypeOfExam type,
+    required TimeFrame timeFrame,
+    required int duration,
+  }) async {
+    final url = Uri.parse('$baseUrl/exam/create');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'subject_class_id': subjectClassId,
+        'room_id': roomId,
+        'exam_date': examDate,
+        'type': type.value,
+        'time_frame': timeFrame.value,
+        'duration': duration,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Exam.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Tạo lịch thi thất bại');
+    }
+  }
+
+  static Future<Exam> updateExam({
+    required int examId,
+    required int roomId,
+    required String examDate,
+    required TypeOfExam type,
+    required TimeFrame timeFrame,
+    required int duration,
+    required ExamStatus status,
+  }) async {
+    final url = Uri.parse('$baseUrl/exam/$examId/update');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'room_id': roomId,
+        'exam_date': examDate,
+        'type': type.value,
+        'time_frame': timeFrame.value,
+        'duration': duration,
+        'status': status.value,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return Exam.fromJson(data as Map<String, dynamic>);
+    } else {
+      throw Exception(data['detail'] ?? 'Cập nhật lịch thi thất bại');
+    }
+  }
+
+  static Future<void> changeExamActive({
+    required List<int> ids,
+    required bool isActive,
+  }) async {
+    final url = Uri.parse('$baseUrl/exam/change_active');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'ids': ids, 'is_active': isActive}),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(
+        data['detail'] ?? 'Cập nhật trạng thái lịch thi thất bại',
+      );
+    }
+  }
+
+  static Future<List<ExamInvigilator>> getExamInvigilators(int examId) async {
+    final url = Uri.parse('$baseUrl/exam_invigilator?exam_id=$examId');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data
+          .map((e) => ExamInvigilator.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Lấy danh sách CBCT thất bại');
+    }
+  }
+
+  static Future<List<ExamInvigilator>> setExamInvigilators({
+    required int examId,
+    required List<int> teacherIds,
+  }) async {
+    final url = Uri.parse('$baseUrl/exam_invigilator/set');
+    final token = await TokenStorage.getToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'exam_id': examId, 'teacher_ids': teacherIds}),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data
+          .map((e) => ExamInvigilator.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['detail'] ?? 'Cập nhật danh sách CBCT thất bại');
     }
   }
 }
