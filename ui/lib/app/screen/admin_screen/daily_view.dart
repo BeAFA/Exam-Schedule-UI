@@ -6,7 +6,6 @@ class DailyView extends StatelessWidget {
   final DateTime currentDate;
   final List<CalendarEvent> Function(DateTime) getEventsForDate;
 
-  // Bộ lọc hiển thị: cho phép ẩn/hiện riêng Lớp học phần và Lịch thi
   final bool showClasses;
   final bool showExams;
 
@@ -22,7 +21,6 @@ class DailyView extends StatelessWidget {
   Widget build(BuildContext context) {
     final allEvents = getEventsForDate(currentDate);
 
-    // Áp dụng bộ lọc trước khi chia theo ca
     final events = allEvents.where((e) {
       if (e.isExam && !showExams) return false;
       if (!e.isExam && !showClasses) return false;
@@ -69,7 +67,6 @@ class DailyView extends StatelessWidget {
           ),
           const Divider(height: 1),
           
-          // Danh sách sự kiện cuộn ngang
           if (events.isEmpty)
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -88,7 +85,7 @@ class DailyView extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: SizedBox(
-                      width: 300, // Chiều rộng cố định cho thẻ để lướt ngang đẹp hơn
+                      width: 300,
                       child: _buildDailyCard(e),
                     ),
                   );
@@ -117,7 +114,7 @@ class DailyView extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min, // Để card tự động điều chỉnh độ cao theo nội dung
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,7 +136,6 @@ class DailyView extends StatelessWidget {
             ],
           ),
 
-          // --- Cấu trúc cho Lớp Học Phần ---
           if (!e.isExam) ...[
             if (e.subjectName != null) ...[
               const SizedBox(height: 2),
@@ -178,7 +174,6 @@ class DailyView extends StatelessWidget {
             ),
           ],
 
-          // --- Cấu trúc cho Lịch Thi ---
           if (e.isExam) ...[
             const SizedBox(height: 8),
             Row(
@@ -218,7 +213,6 @@ class DailyView extends StatelessWidget {
             ),
           ],
           
-          // --- Dòng Phân Công Giảng Viên/CBCT ---
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 10),

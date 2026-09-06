@@ -7,16 +7,6 @@ import '../../../core/models/enum_model.dart';
 import '../../../core/models/subject_class_model.dart';
 import '../../../core/models/schedule_model.dart';
 
-/// Bottom sheet dùng chung cho cả TẠO và SỬA lớp học phần.
-///
-/// - Tạo mới ([existing] == null): hiện ô chọn Môn học, KHÔNG có trường
-///   Trạng thái (backend luôn set OPEN khi tạo lớp).
-/// - Sửa ([existing] != null): ẩn ô chọn Môn học (SubjectClassUpdate ở
-///   backend không có subject_id -> không đổi được môn của 1 lớp đã tạo),
-///   hiện thêm Trạng thái. Phòng/Thứ/Buổi hiện KHÔNG được backend trả kèm
-///   trong danh sách lớp (GET /subject_class chỉ trả cột của SubjectClass,
-///   không kèm Schedule) nên không thể prefill sẵn — admin chọn lại như
-///   lúc tạo lớp.
 class SubjectClassFormSheet extends StatefulWidget {
   final SubjectClass? existing;
   final String? existingSubjectName;
@@ -245,7 +235,6 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
                 const SizedBox(height: 12),
 
                 if (_isEdit) ...[
-                  // Sửa lớp KHÔNG được đổi môn học -> chỉ hiển thị, không cho chọn.
                   InputDecorator(
                     decoration: const InputDecoration(
                       labelText: 'Môn học',
@@ -255,8 +244,6 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
                   ),
                   const SizedBox(height: 12),
                 ] else ...[
-                  // Dropdown tìm kiếm môn học (chỉ chọn trong danh sách có sẵn,
-                  // không cho tạo môn học mới).
                   _buildSearchField<Subject>(
                     future: _subjectsFuture,
                     label: 'Môn học',
@@ -276,7 +263,6 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
                   const SizedBox(height: 12),
                 ],
 
-                // Dropdown tìm kiếm phòng học, cùng cơ chế với môn học.
                 _buildSearchField<Room>(
                   future: _roomsFuture,
                   label: 'Phòng học',
@@ -397,7 +383,7 @@ class _SubjectClassFormSheetState extends State<SubjectClassFormSheet> {
                       flex: 3,
                       child: TextFormField(
                         controller: _startDateController,
-                        readOnly: true, // Chỉ cho chọn qua DatePicker
+                        readOnly: true,
                         onTap: _pickStartDate,
                         decoration: const InputDecoration(
                           labelText: 'Ngày bắt đầu',

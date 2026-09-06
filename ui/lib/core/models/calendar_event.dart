@@ -5,9 +5,8 @@ class CalendarEvent {
   final String roomName;
   final String teacherName;
   final bool isExam;
-  final String session; // MORNING, AFTERNOON, EVENING
-
-  // Dành cho Lớp học phần
+  final String session;
+  
   final String? subjectName;
   final String? academicYear;
   final String? semesterLabel;
@@ -16,7 +15,6 @@ class CalendarEvent {
   final DateTime? startDate;
   final ClassStatus? classStatus;
 
-  // Dành cho Lịch thi
   final String? examTime;
   final int? duration;
   final String? examTypeLabel;

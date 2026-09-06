@@ -168,14 +168,13 @@ class _SubjectClassScreenState extends State<SubjectClassScreen> {
     }
   }
 
-  // [KHÔI PHỤC] Hàm mở BottomSheet phân công giảng viên
   Future<void> _openAssignTeacherSheet(
     SubjectClass item,
     List<Profile> teachers,
     TeachingAssignment? existingAssignment,
     Profile? currentTeacher,
   ) async {
-    final result = await showModalBottomSheet<TeachingAssignment>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -196,7 +195,6 @@ class _SubjectClassScreenState extends State<SubjectClassScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) => Padding(
           padding: const EdgeInsets.all(20),
@@ -362,7 +360,7 @@ class _SubjectClassScreenState extends State<SubjectClassScreen> {
                           ],
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                           itemCount: filteredClasses.length,
                           separatorBuilder: (_, _) => const SizedBox(height: 12),
                           itemBuilder: (context, index) {
@@ -400,7 +398,6 @@ class _SubjectClassScreenState extends State<SubjectClassScreen> {
     );
   }
 
-  // [KHÔI PHỤC & HỢP NHẤT] Card lớp học phần chứa Checkbox + Chi tiết Môn/Lịch/Giảng viên
   Widget _buildClassCard({
     required SubjectClass item,
     required String? subjectName,
@@ -515,7 +512,6 @@ class _SubjectClassScreenState extends State<SubjectClassScreen> {
             const Divider(height: 1),
             const SizedBox(height: 10),
 
-            // [KHÔI PHỤC] Khối Quản lý Giảng viên Phụ trách
             Row(
               children: [
                 const Icon(Icons.person_outline, size: 16, color: Colors.grey),

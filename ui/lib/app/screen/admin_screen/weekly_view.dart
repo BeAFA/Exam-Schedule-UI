@@ -5,7 +5,6 @@ class WeeklyView extends StatelessWidget {
   final DateTime currentDate;
   final List<CalendarEvent> Function(DateTime) getEventsForDate;
 
-  // Bộ lọc hiển thị: cho phép ẩn/hiện riêng Lớp học phần và Lịch thi
   final bool showClasses;
   final bool showExams;
 
@@ -29,16 +28,13 @@ class WeeklyView extends StatelessWidget {
   Widget build(BuildContext context) {
     DateTime monday = _getMonday(currentDate);
     
-    // Khởi tạo lưới [3 ca][7 ngày]
     List<List<List<CalendarEvent>>> grid = List.generate(3, (_) => List.generate(7, (_) => []));
 
-    // Đổ dữ liệu vào lưới của cả 7 ngày
     for (int i = 0; i < 7; i++) {
       DateTime day = monday.add(Duration(days: i));
       List<CalendarEvent> dayEvents = getEventsForDate(day);
       
       for (var e in dayEvents) {
-        // Bỏ qua sự kiện thuộc loại đang bị ẩn theo bộ lọc
         if (e.isExam && !showExams) continue;
         if (!e.isExam && !showClasses) continue;
 
@@ -70,7 +66,6 @@ class WeeklyView extends StatelessWidget {
               7: FixedColumnWidth(130),
             },
             children: [
-              // Hàng Tiêu đề (Header ngày)
               TableRow(
                 decoration: const BoxDecoration(color: Color(0xFFF8F9FE)),
                 children: [
@@ -109,12 +104,6 @@ class WeeklyView extends StatelessWidget {
     return TableRow(
       children: [
         TableCell(
-          // Không dùng `fill` ở đây: cell `fill` bị Table LOẠI KHỎI phép tính
-          // row height (vì kích thước của nó phụ thuộc ngược vào row height,
-          // nên Table không thể dùng nó để suy ra row height mà không bị vòng lặp).
-          // Kết quả là minHeight bên dưới sẽ bị "vô hiệu hoá" nếu dùng fill.
-          // Dùng `middle` (mặc định) để cell này được TÍNH vào row height,
-          // đảm bảo hàng luôn cao tối thiểu 120 kể cả khi các ô ngày rỗng.
           verticalAlignment: TableCellVerticalAlignment.middle,
           child: Container(
             constraints: const BoxConstraints(minHeight: 120),
@@ -129,8 +118,7 @@ class WeeklyView extends StatelessWidget {
         ),
         ...weekData.map((events) {
 
-          // Tách riêng 2 nhóm: Lớp học phần và Lịch thi, mỗi nhóm giới hạn
-          // hiển thị tối đa 2 thẻ, phần dư ra gộp thành nhãn "+N" riêng của nhóm đó.
+
           final classEvents = events.where((e) => !e.isExam).toList();
           final examEvents = events.where((e) => e.isExam).toList();
 
@@ -202,7 +190,6 @@ class WeeklyView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tiêu đề
           Text(
             e.title,
             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color.withValues(alpha: 0.9)),
@@ -211,7 +198,6 @@ class WeeklyView extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           
-          // Phòng
           Text(
             'Phòng: ${e.roomName}',
             style: TextStyle(fontSize: 10, color: Colors.grey.shade800),
@@ -219,7 +205,6 @@ class WeeklyView extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           
-          // Giảng viên / CBCT
           Text(
             '${e.isExam ? "CBCT" : "GV"}: ${e.teacherName}',
             style: TextStyle(
@@ -231,7 +216,6 @@ class WeeklyView extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
 
-          // Thông tin thêm nếu là Lịch thi (Thời gian, Thời lượng)
           if (e.isExam && e.examTime != null) ...[
             const SizedBox(height: 2),
             Text(

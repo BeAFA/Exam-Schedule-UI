@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
 import '/core/token_storage.dart';
 import '/core/models/profile_model.dart';
 import '/core/models/subject_class_model.dart';
@@ -13,7 +12,7 @@ import '/core/models/exam_model.dart';
 import '/core/models/exam_invigilator_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.88.166:8000';
+  static const String baseUrl = 'http://192.168.1.36:8000';
 
   static Future<Map<String, dynamic>> login(
     String email,
@@ -161,15 +160,11 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      // Backend trả về MỘT DANH SÁCH (crud.get_all_subject_class trả list),
-      // nên phải decode ra List rồi map từng phần tử, KHÔNG parse như 1 object.
       final data = jsonDecode(response.body) as List<dynamic>;
       return data
           .map((e) => SubjectClass.fromJson(e as Map<String, dynamic>))
           .toList();
     } else if (response.statusCode == 404) {
-      // Backend cố tình trả 404 khi danh sách rỗng ("Hiện không có lớp nào cả!")
-      // -> đây là trạng thái hợp lệ (danh sách rỗng), không phải lỗi thật sự.
       return [];
     } else {
       final data = jsonDecode(response.body);
@@ -235,7 +230,6 @@ class ApiService {
         'max_students': maxStudents,
         'start_date': startDate,
         'number_of_sessions': numberOfSessions,
-        // Backend yêu cầu schedules là một list
         'schedules': [
           {
             'room_id': roomId,
@@ -287,7 +281,6 @@ class ApiService {
         'start_date': startDate,
         'number_of_sessions': numberOfSessions,
         'status': status.value,
-        // Backend yêu cầu schedules là một list
         'schedules': [
           {
             'room_id': roomId,
@@ -309,7 +302,6 @@ class ApiService {
     }
   }
 
-  // Thay đổi trạng thái is_active (Mở/Đóng/Xóa mềm) hàng loạt cho Lớp học phần
   static Future<void> changeSubjectClassActive({
     required List<int> ids,
     required bool isActive,
@@ -332,8 +324,6 @@ class ApiService {
     }
   }
 
-  /// Lấy phân công giảng dạy hiện tại (nếu có) của 1 lớp học phần.
-  /// Backend trả `null` (status 200) khi lớp chưa có giảng viên nào.
   static Future<TeachingAssignment?> getTeachingAssignment(
     int subjectClassId,
   ) async {
@@ -458,7 +448,6 @@ class ApiService {
     }
   }
 
-  /// Tạo lịch thi mới
   static Future<Exam> createExam({
     required int subjectClassId,
     required int roomId,
@@ -531,7 +520,6 @@ class ApiService {
     }
   }
 
-  // Thay đổi trạng thái is_active (Mở/Đóng/Xóa mềm) hàng loạt cho Lịch thi
   static Future<void> changeExamActive({
     required List<int> ids,
     required bool isActive,
@@ -578,7 +566,6 @@ class ApiService {
     }
   }
 
-  // Thiết lập toàn bộ danh sách cán bộ coi thi cho 1 ca thi (Set endpoint)
   static Future<List<ExamInvigilator>> setExamInvigilators({
     required int examId,
     required List<int> teacherIds,

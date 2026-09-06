@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Quản lý đăng ký môn học',
+      title: 'Quản lý lớp học phần và lịch thi',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: AppRouter.initialScreen(),
       debugShowCheckedModeBanner: false,

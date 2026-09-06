@@ -48,7 +48,6 @@ class _SplashScreenState extends State<SplashScreen> {
       MaterialPageRoute(builder: (_) => target),
     );
   } catch (_) {
-    // Token hết hạn / không hợp lệ
     await TokenStorage.clearSession();
 
     if (!mounted) return;

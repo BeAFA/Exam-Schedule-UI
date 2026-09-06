@@ -75,6 +75,12 @@ class _AssignInvigilatorSheetState extends State<AssignInvigilatorSheet> {
   }
 
   Future<void> _syncInvigilators(List<int> newTeacherIds) async {
+    if (newTeacherIds.isEmpty) {
+      setState(() {
+        _errorMessage = 'Danh sách cán bộ coi thi phải có ít nhất 1 người.';
+      });
+      return;
+    }
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
@@ -94,8 +100,17 @@ class _AssignInvigilatorSheetState extends State<AssignInvigilatorSheet> {
       });
     } catch (e) {
       if (!mounted) return;
+
+      final errorStr = e.toString();
+      String friendlyMessage = 'Không thể cập nhật danh sách cán bộ coi thi.';
+
+      if (errorStr.contains('too_short') ||
+          errorStr.contains('at least 1 item')) {
+        friendlyMessage = 'Vui lòng chọn ít nhất 1 cán bộ coi thi.';
+      }
+
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = friendlyMessage;
       });
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

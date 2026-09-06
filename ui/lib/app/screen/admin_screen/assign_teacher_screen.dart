@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../features/auth/api.dart';
 import '../../../core/models/profile_model.dart';
 import '../../../core/models/subject_class_model.dart';
@@ -101,32 +100,7 @@ class _AssignTeacherScreenState extends State<AssignTeacherScreen> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop(true); // báo cho màn hình cha reload
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
-  }
-
-  Future<void> _handleRemove() async {
-    if (_isSubmitting || widget.existingAssignment == null) return;
-
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
-    try {
-      await ApiService.changeTeachingAssignmentActive([widget.existingAssignment!.id]);
-
-      if (!mounted) return;
-      Navigator.of(context).pop(true); // báo cho màn hình cha reload
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() {

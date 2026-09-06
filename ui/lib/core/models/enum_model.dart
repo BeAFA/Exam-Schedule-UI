@@ -148,7 +148,7 @@ enum TimeFrame {
 
 enum ExamStatus {
   scheduled('SCHEDULED'),
-  completed('COMPLETED'),
+  completed('FINISHED'),
   cancelled('CANCELLED');
 
   final String value;

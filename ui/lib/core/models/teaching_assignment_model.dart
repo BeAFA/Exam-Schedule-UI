@@ -1,4 +1,3 @@
-// core/models/teaching_assignment_model.dart
 class TeachingAssignment {
   final int id;
   final int teacherId;

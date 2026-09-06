@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-
 import '../login_screen.dart';
 import '../profile_screen.dart';
 import 'subject_class_screen.dart';
 import 'exam_screen.dart';
-import 'schedule_screen.dart'; // Import màn hình Thời gian biểu mới tạo
+import 'schedule_screen.dart';
 import '../../../features/auth/api.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -22,12 +21,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Khởi tạo danh sách các màn hình, thêm ScheduleScreen vào vị trí index 3
     _pages = [
       _buildHomeScreen(), 
       const SubjectClassScreen(), 
       const ExamScreen(), 
-      const ScheduleScreen(), // Màn hình thời gian biểu mới
+      const ScheduleScreen(),
       const ProfileScreen()
     ];
   }
@@ -46,20 +44,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
-    Navigator.pop(context); // Đóng Drawer (Menu bên trái) sau khi chuyển trang
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar tự động thêm nút Menu (Hamburger icon) ở trên cùng bên trái khi có Drawer
       appBar: AppBar(
         title: const Text('Hệ Thống Quản Trị'),
         backgroundColor: const Color(0xFF6E8CF0),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      // Drawer thay thế cho bottomNavigationBar
       drawer: Drawer(
         child: Column(
           children: [
@@ -119,7 +115,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 ],
               ),
             ),
-            // Nút đăng xuất nằm ở cuối Drawer
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),
               title: const Text('Đăng xuất', style: TextStyle(color: Colors.redAccent)),

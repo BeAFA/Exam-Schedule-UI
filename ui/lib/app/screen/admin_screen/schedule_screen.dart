@@ -29,7 +29,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   bool _isWeeklyView = false;
   DateTime _currentDate = DateTime.now();
 
-  // Bộ lọc hiển thị cho chế độ Tuần: cho phép chọn xem Học phần, Lịch thi, hoặc cả hai
   bool _showClasses = true;
   bool _showExams = true;
 
@@ -40,14 +39,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   Future<Map<String, dynamic>> _loadAllData() async {
-    // Tải thêm thông tin Môn học (Subjects) để hiển thị tên môn
     final results = await Future.wait([
       ApiService.getSubjectClasses(),
       ApiService.getSchedules(),
       ApiService.getExams(),
       ApiService.getRooms(),
       ApiService.getTeachers(),
-      ApiService.getSubjects(), // Gọi API Môn học
+      ApiService.getSubjects(),
     ]);
 
     final classes = results[0] as List<SubjectClass>;
@@ -92,7 +90,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       'exams': exams,
       'rooms': roomsById,
       'teachers': teachersById,
-      'subjects': subjectsById, // Đưa subjectsById vào map
+      'subjects': subjectsById,
       'assignments': assignmentsMap,
       'invigilators': invigilatorsMap,
     };
@@ -104,15 +102,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       _fetchDataFuture = future;
     });
     try {
-      // FutureBuilder ở build() sẽ tự hiển thị lỗi qua snapshot.hasError,
-      // ở đây chỉ cần "chờ" để biết khi nào dữ liệu mới đã sẵn sàng.
       await future;
     } catch (_) {
-      // Lỗi đã được xử lý hiển thị ở FutureBuilder.
     }
   }
 
-  // Mở form Tạo lớp học phần (giống subject_class_screen.dart)
   Future<void> _openAddClassSheet() async {
     final created = await showModalBottomSheet<bool>(
       context: context,
@@ -126,7 +120,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
   }
 
-  // Mở form Tạo lịch thi (giống exam_screen.dart)
   Future<void> _openCreateExamSheet() async {
     final created = await showModalBottomSheet<bool>(
       context: context,
@@ -163,7 +156,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   void _toggleShowClasses() {
-    // Không cho phép tắt nếu đây là lựa chọn duy nhất đang bật
     if (_showClasses && !_showExams) return;
     setState(() => _showClasses = !_showClasses);
   }
@@ -222,7 +214,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     List<CalendarEvent> events = [];
     final target = _stripTime(targetDate);
 
-    // Lọc sự kiện Lớp học phần
     for (var sch in schedules) {
       final cls = classesById[sch.subjectClassId];
       if (cls == null || cls.startDate == null) continue;
@@ -263,7 +254,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       }
     }
 
-    // Lọc sự kiện Lịch thi
     for (var ex in exams) {
       final examDate = _stripTime(ex.examDate);
       if (examDate.isAtSameMomentAs(target)) {
@@ -309,8 +299,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Trong suốt để không che layout/màu nền vốn có của trang này —
-      // chỉ mượn Scaffold để có chỗ gắn floatingActionButton.
       backgroundColor: Colors.transparent,
       body: FutureBuilder<Map<String, dynamic>>(
         future: _fetchDataFuture,
@@ -460,7 +448,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
-  // Nút bấm chọn lọc hiển thị: có thể chọn 1 trong 2, hoặc cả 2 (không cho chọn 0)
   Widget _buildFilterToggle({
     required Color color,
     required String label,

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../features/auth/api.dart';
 import '../../../core/models/exam_model.dart';
 import '../../../core/models/subject_class_model.dart';
@@ -149,7 +148,6 @@ class _ExamScreenState extends State<ExamScreen> {
     }
   }
 
-  // [KHÔI PHỤC] Mở màn hình Thêm/Sửa Cán bộ coi thi
   Future<void> _openAssignInvigilatorSheet(
     Exam exam,
     List<Profile> teachers,
@@ -174,7 +172,6 @@ class _ExamScreenState extends State<ExamScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) => Padding(
           padding: const EdgeInsets.all(20),
@@ -384,7 +381,7 @@ class _ExamScreenState extends State<ExamScreen> {
                           ],
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                           itemCount: filteredExams.length,
                           separatorBuilder: (_, _) => const SizedBox(height: 12),
                           itemBuilder: (context, index) {
@@ -417,7 +414,6 @@ class _ExamScreenState extends State<ExamScreen> {
     );
   }
 
-  // Card hiển thị thông tin Lịch thi + tích hợp CBCT & Checkbox
   Widget _buildExamCard({
     required Exam exam,
     required SubjectClass? subjectClass,
@@ -540,7 +536,6 @@ class _ExamScreenState extends State<ExamScreen> {
             const Divider(height: 1),
             const SizedBox(height: 10),
 
-            // [KHÔI PHỤC] Quản lý Cán bộ coi thi
             Row(
               children: [
                 const Icon(Icons.person_outline, size: 16, color: Colors.grey),

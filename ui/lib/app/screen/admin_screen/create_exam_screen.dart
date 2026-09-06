@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../features/auth/api.dart';
 import '../../../core/models/subject_class_model.dart';
 import '../../../core/models/room_model.dart';
@@ -27,7 +26,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
   final _formKey = GlobalKey<FormState>();
   bool isChecked = false;
 
-  // Custom Inline Autocomplete Controllers
   final TextEditingController _classSearchController = TextEditingController();
   final FocusNode _classSearchFocus = FocusNode();
   List<SubjectClass> _allClasses = [];
@@ -40,19 +38,16 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
   List<Room> _filteredRooms = [];
   Room? _selectedRoom;
 
-  // Lưu lịch trình để tính toán ngày thi tự động
   List<Schedule> _allSchedules = [];
 
-  // Form Fields
   late TypeOfExam _selectedType;
   late TimeFrame _selectedTimeFrame;
   late TextEditingController _durationController;
   late ExamStatus _selectedStatus;
 
-  // Date selection state
-  int _dateSelectionOption = 1; // 1: Kế tiếp buổi cuối, 2: Tùy chọn
+  int _dateSelectionOption = 1;
   DateTime? _selectedCustomDate;
-  DateTime? _calculatedNextDate; // Lưu ngày tự động tính cho Option 1
+  DateTime? _calculatedNextDate;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -82,7 +77,7 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
       }
       
       _selectedCustomDate = widget.existing?.examDate;
-      _dateSelectionOption = 2; // Always use custom date for editing
+      _dateSelectionOption = 2;
     }
 
     _loadInitialData();
@@ -100,7 +95,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
 
   Future<void> _loadInitialData() async {
     try {
-      // Tải song song Lớp, Phòng, Lịch thi (để lọc) và Lịch học (để tính ngày)
       final results = await Future.wait([
         ApiService.getSubjectClasses(),
         ApiService.getRooms(),
@@ -144,7 +138,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
         .toList();
   }
 
-  // Hàm ánh xạ Enum Weekday sang int của Dart (Thứ 2 = 1, Chủ nhật = 7)
   int _getDartWeekday(Weekday weekday) {
     switch (weekday) {
       case Weekday.mon:
@@ -164,7 +157,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
     }
   }
 
-  // Tự động tính toán ngày thi và giờ thi cho Option 1
   void _calculateOption1Date() {
     if (_selectedClass == null ||
         _selectedClass!.startDate == null ||
@@ -174,7 +166,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
     }
 
     try {
-      // Lấy lịch học của lớp này
       final schedule = _allSchedules.firstWhere(
         (s) => s.subjectClassId == _selectedClass!.id,
       );
@@ -182,17 +173,14 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
       int targetWeekday = _getDartWeekday(schedule.weekday);
       DateTime current = _selectedClass!.startDate!;
 
-      // Chạy tới ngày học ĐẦU TIÊN đúng với thứ trong tuần
       while (current.weekday != targetWeekday) {
         current = current.add(const Duration(days: 1));
       }
 
-      // Buổi kế tiếp sau buổi cuối = Ngày học đầu + (Tổng số buổi * 7 ngày)
       _calculatedNextDate = current.add(
         Duration(days: _selectedClass!.numberOfSessions! * 7),
       );
 
-      // Tự động đặt Khung giờ thi theo Buổi học (Sáng -> 07:30, Chiều -> 13:00)
       if (schedule.session.value == 'MORNING') {
         _selectedTimeFrame = TimeFrame.values.firstWhere(
           (tf) => tf.value.contains('07'),
@@ -230,7 +218,7 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
     if (picked != null) {
       setState(() {
         _selectedCustomDate = picked;
-        _dateSelectionOption = 2; // Tự động chuyển sang Option 2 nếu pick ngày
+        _dateSelectionOption = 2;
       });
     }
   }
@@ -247,7 +235,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
       return;
     }
 
-    // Xác định ngày gửi đi phụ thuộc vào Radio button
     final examDate = _dateSelectionOption == 1
         ? _calculatedNextDate
         : _selectedCustomDate;
@@ -402,7 +389,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                   const SizedBox(height: 12),
                 ],
 
-                // Hình thức chọn ngày
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -507,7 +493,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                 ),
                 const SizedBox(height: 12),
 
-                // Phòng thi
                 _buildSearchDropdown(
                   label: 'Phòng thi',
                   controller: _roomSearchController,
@@ -563,7 +548,6 @@ class _CreateExamSheetState extends State<CreateExamSheet> {
                 ),
                 const SizedBox(height: 12),
 
-                // Khung giờ
                 DropdownButtonFormField<TimeFrame>(
                   decoration: const InputDecoration(
                     labelText: 'Khung giờ bắt đầu',
